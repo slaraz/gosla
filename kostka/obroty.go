@@ -1,6 +1,6 @@
 package main
 
-func (k Kostka) obrotYGoraLewo() {
+func (k *Kostka) obrotYGoraLewo() {
 	return
 }
 
@@ -14,24 +14,23 @@ func (k *Kostka) wszystkieRuchy() []ruch {
 	return []ruch{
 		k.obrotYGoraLewo,
 		k.obrotYGoraPrawo,
-		// ObrotYGoraPrawo()
-		// ObrotYSrodekLewo()
-		// ObrotYSrodekPrawo()
-		// ObrotYDolLewo()
-		// ObrotYDolPrawo()
+		// rotYSrodekLewo
+		// rotYSrodekPrawo
+		// rotYDolLewo
+		// rotYDolPrawo
 
-		// ObrotXLewoGora()
-		// ObrotXLewoDol()
-		// ObrotXSrodekGora()
-		// ObrotXSrodekDol()
-		// ObrotXPrawoGora()
-		// ObrotXPrawoDol()
+		// rotXLewoGora
+		// rotXLewoDol
+		// rotXSrodekGora
+		// rotXSrodekDol
+		// rotXPrawoGora
+		// rotXPrawoDol
 
-		// ObrotZPrzodPrawo()
-		// ObrotZPrzodLewo()
-		// ObrotZSrodekPrawo()
-		// ObrotZSrodekLewo()
-		// ObrotZTylPrawo()
-		// ObrotZTylLewo()
+		// rotZPrzodPrawo
+		// rotZPrzodLewo
+		// rotZSrodekPrawo
+		// rotZSrodekLewo
+		// rotZTylPrawo
+		// rotZTylLewo
 	}
 }
