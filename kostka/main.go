@@ -7,18 +7,11 @@ import (
 
 func main() {
 	fmt.Println("Start.")
+
 	k := nowaKostka()
+	ruchy := k.wszystkieRuchy()
+	fmt.Println(len(ruchy))
+
 	b, _ := json.MarshalIndent(k, "", "  ")
 	fmt.Printf(string(b))
-}
-
-type ruch func()
-
-func rruru() {
-	k := nowaKostka()
-	ruchy := []ruch{
-		k.ObrotYGoraLewo,
-		k.ObrotYGoraPrawo,
-	}
-	fmt.Println(len(ruchy))
 }

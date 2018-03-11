@@ -37,31 +37,3 @@ func nowaScianka(k Kolor) *Scianka {
 	}
 	return scia
 }
-
-func (k Kostka) ObrotYGoraLewo() {
-	return
-}
-func (k Kostka) ObrotYGoraPrawo() {
-	return
-}
-
-// ObrotYGoraLewo() *IKostka
-// ObrotYGoraPrawo() *IKostka
-// ObrotYSrodekLewo() *IKostka
-// ObrotYSrodekPrawo() *IKostka
-// ObrotYDolLewo() *IKostka
-// ObrotYDolPrawo() *IKostka
-
-// ObrotXLewoGora() *IKostka
-// ObrotXLewoDol() *IKostka
-// ObrotXSrodekGora() *IKostka
-// ObrotXSrodekDol() *IKostka
-// ObrotXPrawoGora() *IKostka
-// ObrotXPrawoDol() *IKostka
-
-// ObrotZPrzodPrawo() *IKostka
-// ObrotZPrzodLewo() *IKostka
-// ObrotZSrodekPrawo() *IKostka
-// ObrotZSrodekLewo() *IKostka
-// ObrotZTylPrawo() *IKostka
-// ObrotZTylLewo() *IKostka
