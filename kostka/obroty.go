@@ -1,6 +1,6 @@
 package main
 
-func (k Kostka) obrotYGoraLewo() {
+func (k *Kostka) obrotYGoraLewo() {
 	return
 }
 
