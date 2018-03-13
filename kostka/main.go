@@ -1,17 +1,18 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
+
+	"github.com/slaraz/gosla/kostka/kostka2"
 )
 
 func main() {
 	fmt.Println("Start.")
 
-	k := nowaKostka()
-	ruchy := k.wszystkieRuchy()
-	fmt.Println(len(ruchy))
+	k := kostka2.NowaKostka()
+	ruchy := k.WszystkieRuchy()
 
-	b, _ := json.MarshalIndent(k, "", "  ")
-	fmt.Printf(string(b))
+	fmt.Println("Ile ruchów:", len(ruchy))
+
+	fmt.Println(k)
 }

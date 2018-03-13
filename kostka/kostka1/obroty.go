@@ -1,4 +1,4 @@
-package main
+package kostka1
 
 func (k *Kostka) obrotYGoraLewo() {
 	return
@@ -10,7 +10,7 @@ func (k *Kostka) obrotYGoraPrawo() {
 
 type ruch func()
 
-func (k *Kostka) wszystkieRuchy() []ruch {
+func (k *Kostka) WszystkieRuchy() []ruch {
 	return []ruch{
 		k.obrotYGoraLewo,
 		k.obrotYGoraPrawo,
