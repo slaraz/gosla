@@ -7,23 +7,19 @@ import (
 )
 
 type Kostka struct {
-	Kwadraciki [54]kolor.Kolor
+	Kwadraciki [48]kolor.Kolor
 }
 
 func NowaKostka() *Kostka {
 	kost := new(Kostka)
 	i := 0
-	for _, k := range kolor.Kolory {
-		for p := 0; p < 9; p++ {
-			kost.Kwadraciki[i] = k
+	for k := 1; k <= 6; k++ {
+		for p := 0; p < 8; p++ {
+			kost.Kwadraciki[i] = kolor.Kolor(k)
 			i++
 		}
 	}
 	return kost
-}
-
-func (k Kostka) WszystkieRuchy() []func() {
-	return nil
 }
 
 func (k Kostka) String() string {

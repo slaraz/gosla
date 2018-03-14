@@ -12,10 +12,10 @@ type Scianka struct {
 
 func NowaKostka() *Kostka {
 	var kos = new(Kostka)
-	for b, k := range kolor.Kolory {
-		s := nowaScianka(k)
-		kos.Boki[b] = s
-	}
+	// for b, k := range kolor.Kolory {
+	// 	s := nowaScianka(k)
+	// 	kos.Boki[b] = s
+	// }
 	return kos
 }
 
