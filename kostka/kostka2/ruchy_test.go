@@ -1,44 +1,65 @@
 package kostka2
 
 import (
-	"fmt"
 	"testing"
-
-	"github.com/slaraz/gosla/kostka/kolor"
 )
 
-func TestKostka_ObrótXGóraDół(t *testing.T) {
-	tests := []struct {
-		name string
-		k    *Kostka
-		i    int
-		w    kolor.Kolor
-	}{
-		{"jeden obrót",
-			NowaKostka(),
-			17,
-			kolor.Nieb},
+func TestKostka_4Obroty(t *testing.T) {
+	k := NowaKostka()
+	c := *k
+	r := k.WszystkieRuchy()
+	for _, obr := range r {
+		obr()
+		if *k == c {
+			t.Fail()
+		}
+		obr()
+		obr()
+		obr()
+		if *k != c {
+			t.Fail()
+		}
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tt.k.ObrótXGóraDół()
-			fmt.Println(tt.k.Kwadraciki[tt.i])
-			if tt.k.Kwadraciki[tt.i] != tt.w {
-				t.Fail()
-			}
-		})
+}
+func TestKostka_ObrotyAB(t *testing.T) {
+	k := NowaKostka()
+	c := *k
+	r := k.WszystkieRuchy()
+	for i := 0; i < len(r); i += 2 {
+		obrA := r[i]
+		obrB := r[i+1]
+		obrA()
+		if *k == c {
+			t.Fail()
+		}
+		obrB()
+		if *k != c {
+			t.Fail()
+		}
 	}
 }
 
-func BenchmarkObrótXGóraDół(b *testing.B) {
-	k := NowaKostka()
-	for n := 0; n < b.N; n++ {
-		k.ObrótXGóraDół()
-	}
-}
-func BenchmarkObrotGD(b *testing.B) {
+func BenchmarkObrotKlasyk(b *testing.B) {
 	k := NowaKostka()
 	for n := 0; n < b.N; n++ {
 		k.obrotYGoraPrawo()
+	}
+}
+func BenchmarkObrotNaPiechote(b *testing.B) {
+	k := NowaKostka()
+	for n := 0; n < b.N; n++ {
+		k.ObrZTylB()
+	}
+}
+func BenchmarkNowaKostka(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		_ = NowaKostka()
+	}
+}
+func BenchmarkPorównanie(b *testing.B) {
+	k1 := NowaKostka()
+	k2 := NowaKostka()
+	for n := 0; n < b.N; n++ {
+		_ = *k1 == *k2
 	}
 }
