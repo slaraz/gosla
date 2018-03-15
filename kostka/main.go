@@ -14,7 +14,7 @@ func main() {
 	ruchy := k.WszystkieRuchy()
 
 	t := time.Now()
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 1*1000*1000; i++ {
 		ruchy[0]()
 	}
 	fmt.Println(time.Now().Sub(t))
@@ -22,3 +22,5 @@ func main() {
 	k.Drukuj()
 
 }
+
+//kostka ma po 9  jednego koloru

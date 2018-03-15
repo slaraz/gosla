@@ -1,8 +1,6 @@
 package kostka2
 
 import (
-	"fmt"
-
 	"github.com/slaraz/gosla/kostka/kolor"
 )
 
@@ -20,8 +18,4 @@ func NowaKostka() *Kostka {
 		}
 	}
 	return kost
-}
-
-func (k Kostka) String() string {
-	return fmt.Sprintf("%v", k.Kwadraciki)
 }
