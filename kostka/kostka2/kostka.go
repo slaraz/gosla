@@ -9,7 +9,7 @@ type Kostka struct {
 }
 
 func NowaKostka() *Kostka {
-	kost := new(Kostka)
+	kost := &Kostka{}
 	i := 0
 	for k := 1; k <= 6; k++ {
 		for p := 0; p < 8; p++ {

@@ -3,23 +3,23 @@ package kolor
 type Kolor byte
 
 const (
-	czar Kolor = 1 + iota
-	ziel
-	czer
-	nieb
-	zolt
-	poma
+	Czar Kolor = 1 + iota
+	Ziel
+	Czer
+	Nieb
+	Zolt
+	Poma
 )
 
 //var Kolory = []Kolor{czar, czer, nieb, zolt, żółt, poma}
 
 var nazwy = map[Kolor]string{
-	czar: "czar",
-	czer: "czer",
-	nieb: "nieb",
-	zolt: "zolt",
-	poma: "poma",
-	ziel: "ziel",
+	Czar: "Czar",
+	Ziel: "Ziel",
+	Czer: "Czer",
+	Nieb: "Nieb",
+	Zolt: "Zolt",
+	Poma: "Poma",
 }
 
 func (k Kolor) String() string {
