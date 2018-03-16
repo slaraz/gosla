@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 )
 
 type a struct {
-	tab []int
+	tab [2]int
 }
 
 func newA() a {
-	return a{[]int{1, 2}}
+	return a{[2]int{1, 2}}
 }
 
 func (v a) mody() {
@@ -17,8 +18,8 @@ func (v a) mody() {
 }
 
 func main() {
-	v := newA()
-	fmt.Printf("%v\n", v)
-	v.mody()
-	fmt.Printf("%v\n", v)
+	fmt.Println(rand.Intn(48))
+	fmt.Println(rand.Intn(48))
+	fmt.Println(rand.Intn(48))
+	fmt.Println(rand.Intn(48))
 }

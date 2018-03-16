@@ -1,6 +1,7 @@
 package kostka2
 
 import (
+	"math/rand"
 	"testing"
 )
 
@@ -61,5 +62,12 @@ func BenchmarkPorównanie(b *testing.B) {
 	k2 := NowaKostka()
 	for n := 0; n < b.N; n++ {
 		_ = *k1 == *k2
+	}
+}
+
+func BenchmarkMathRand(b *testing.B) {
+	//var i int
+	for n := 0; n < b.N; n++ {
+		_ = rand.Intn(48)
 	}
 }
