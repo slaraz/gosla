@@ -18,8 +18,14 @@ func (v a) mody() {
 }
 
 func main() {
-	fmt.Println(rand.Intn(48))
-	fmt.Println(rand.Intn(48))
-	fmt.Println(rand.Intn(48))
-	fmt.Println(rand.Intn(48))
+	a := []func(){
+		func() { fmt.Println(rand.Intn(48)) },
+		func() { fmt.Println(rand.Intn(48)) },
+		func() { fmt.Println(rand.Intn(48)) },
+		func() { fmt.Println(rand.Intn(48)) },
+	}
+	for _, x := range a {
+		x()
+		fmt.Printf("%v %t\n", x, x)
+	}
 }

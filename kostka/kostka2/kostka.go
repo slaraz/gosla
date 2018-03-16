@@ -19,3 +19,14 @@ func NowaKostka() *Kostka {
 	}
 	return kost
 }
+
+func (kost *Kostka) IleNaMiejscu() (ile int) {
+	for k := 1; k <= 6; k++ {
+		for p := 0; p < 8; p++ {
+			if kost.Kwadraciki[i] == kolor.Kolor(k) {
+				ile++
+			}
+		}
+	}
+	return ile
+}

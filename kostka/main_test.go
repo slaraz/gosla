@@ -13,11 +13,3 @@ func BenchmarkLosowyRuch(b *testing.B) {
 		losowyRuch(r)
 	}
 }
-
-func BenchmarkLosowyRuchGen(b *testing.B) {
-	k := kostka2.NowaKostka()
-	losRuch := genFuncLosowyRuch(k)
-	for n := 0; n < b.N; n++ {
-		losRuch()
-	}
-}
