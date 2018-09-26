@@ -22,7 +22,7 @@ func main() {
 
 func pokapoka(r io.Reader) {
 
-	rdr := bufio.NewReader(usuwacz.Usuwacz{r.(io.Reader)})
+	rdr := bufio.NewReader(usuwacz.NowyUsuwacz(r))
 	for {
 		c, s, err := rdr.ReadRune()
 		if err == io.EOF {
