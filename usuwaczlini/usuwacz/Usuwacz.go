@@ -1,33 +1,36 @@
 package usuwacz
 
 import (
-	"bytes"
 	"io"
-	"io/ioutil"
-	"log"
 )
 
 type Usuwacz struct {
 	rdr io.Reader
 }
 
-func NowyUsuwacz(r io.Reader) *Usuwacz {
+func NowyReader(r io.Reader) *Usuwacz {
 	return &Usuwacz{rdr: r}
 }
 
-func (u *Usuwacz) Read(b []byte) (n int, err error) {
-	buf, err := ioutil.ReadAll(u.rdr)
-	bbuf := bytes.NewBuffer(buf)
-	i := 0
-	for i := range b {
-		c, err := bbuf.ReadByte()
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			log.Fatal("błąd czytania strumienia:", err)
-		}
-		b[i] = c
+var CR = byte('\r')
+var LF = byte('\n')
 
+func (u *Usuwacz) Read(p []byte) (int, error) {
+	m, err := u.rdr.Read(p)
+	if err != nil {
+		return m, err
 	}
-	return i, err
+	buf := make([]byte, m)
+	n := 0
+	for i := 0; i < m; i++ {
+		x := p[i]
+		if x == CR || x == LF {
+			continue
+		}
+		buf[n] = x
+		n++
+	}
+
+	copy(p, buf[:n])
+	return n, nil
 }
