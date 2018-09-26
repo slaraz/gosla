@@ -35,18 +35,3 @@ func pokapoka(r io.Reader) {
 		fmt.Println(c, strconv.QuoteRune(c))
 	}
 }
-
-// func skaner() {
-// 	var out bytes.Buffer
-// 	scanner := bufio.NewScanner(stdout)
-// 	for scanner.Scan() {
-// 		p := scanner.Bytes()
-// 		lines := bytes.Split(p, cr)
-// 		out.Write(lines[0])
-// 		out.Write(lf)
-// 		if len(lines) > 1 {
-// 			out.Write(lines[len(lines)-1])
-// 			out.Write(lf)
-// 		}
-// 	}
-// }
