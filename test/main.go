@@ -1,8 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 func main() {
-	a := int(1.5e6)
-	fmt.Printf("%T, %v", a, a+1)
+	fmt.Printf("%v", time.Now().Format("2006-01-02"))
 }
