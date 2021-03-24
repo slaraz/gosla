@@ -1,220 +1,108 @@
 package v2
 
+import (
+	"encoding/json"
+	"fmt"
+	"log"
 
-
-type Exchanger struct {
-	Url         string
-	Nazwa       string
-	Typ         TypExchangera
-	Durable     bool
-	AutoDelete  bool
-	Internal    bool
-	NoWait      bool
-	AlternateEx bool
-	Confirm     bool
-}
-
-type TypExchangera string
-
-const (
-	ExFanout  TypExchangera = "fanout"
-	ExDirect  TypExchangera = "direct"
-	ExTopic   TypExchangera = "topic"
-	ExHeaders TypExchangera = "headers"
+	"github.com/streadway/amqp"
+	"gopkg.in/yaml.v3"
 )
 
-// // MusiKrolik tworzy połączenie z RabbitMQ i exchanger.
-// func MusiKrolik2(krolikURL, krolikEX string) *Krolik {
+func MusiNowyExchanger(conf string) *Ex {
+	ex, err := nowyExchanger(conf)
+	if err != nil {
+		log.Fatalf("błąd NowyExchanger(): %v", err)
+	}
+	return ex
+}
 
-// 	
-// 	log.Printf("[RabbitMQ.Dial] -> %q", krolikURL)
-// 	conn, err := amqp.Dial(krolikURL)
-// 	if err != nil {
-// 		log.Fatalf("[RabbitMQ] błąd Dial(): %v", err)
-// 	}
-// 	ch, err := conn.Channel()
-// 	if err != nil {
-// 		log.Fatalln("[RabbitMQ] błąd Channel():", err)
-// 	}
+func (ex *Ex) PublikujJSON(v interface{}) error {
+	bajty, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("błąd json.Marshal(): %v", err)
+	}
+	err = ex.publikuj(bajty)
+	if err != nil {
+		return fmt.Errorf("błąd ex.publikuj(): %v", err)
+	}
+	return nil
+}
 
-// 	log.Printf("[RabbitMQ.Decl] (EX) %q", krolikEX)
-// 	if err = ch.ExchangeDeclare(
-// 		krolikEX, // nazwa exchangera
-// 		"direct", // typ: direct, fanout, topic, headers
-// 		true,     // durable - czy ma przerzyć reset serwera
-// 		false,    // autodelete - czy skasować jeśli brak podłączonych kolejek
-// 		false,    // internal
-// 		false,    // noWait
-// 		nil,      // arguments
-// 	); err != nil {
-// 		log.Fatalf("[RabbitMQ] błąd ExchangeDeclare(): %v", err)
-// 	}
+func (ex *Ex) Close() error {
+	if ex.ch != nil {
+		if err := ex.ch.Close(); err != nil {
+			return fmt.Errorf("błąd ch.Close(): %v", err)
+		}
+	}
+	return nil
+}
 
-// 	dlx := krolikEX + ".rejected"
-// 	log.Printf("[RabbitMQ.Decl] (DLX) %q", dlx)
-// 	if err = ch.ExchangeDeclare(
-// 		dlx,      // nazwa exchangera
-// 		"direct", // typ: direct, fanout, topic, headers
-// 		true,     // durable - czy ma przerzyć reset serwera
-// 		false,    // autodelete - czy skasować jeśli nie ma bindingów
-// 		false,    // internal
-// 		false,    // noWait
-// 		nil,      // arguments
-// 	); err != nil {
-// 		log.Fatalf("[RabbitMQ] błąd ExchangeDeclare(): %v", err)
-// 	}
+// ---
 
-// 	return &Krolik{
-// 		ex:  krolikEX,
-// 		dlx: dlx,
-// 		ch:  ch,
-// 	}
-// }
+type konfig struct {
+	Url       string `yaml:"url"` // https://www.rabbitmq.com/uri-spec.html
+	Exchanger struct {
+		Nazwa      string `yaml:"nazwa"`
+		Kind       string `yaml:"kind"`
+		Rodzaj     string `yaml:"rodzaj"`
+		RoutingKey string `yaml:"routingKey,omitempty"`
+	} `yaml:"exchanger"`
+}
 
-// // MusiPobierac binduje po kluczu kolejkę w rabicie
-// // i podłącza handler do obsługi wiadomości z kolejki.
-// func (krolik *Krolik) MusiPobierac(klucz string, handler func([]byte) error) {
+func nowyExchanger(conf string) (*Ex, error) {
+	konf := konfig{}
+	err := yaml.Unmarshal([]byte(conf), &konf)
+	if err != nil {
+		fmt.Printf("błąd yaml.Unmarshal(): %v\n", err)
+	}
+	fmt.Println(konf)
 
-// 	// Przygotowanie kolejki.
-// 	nazwaKolejki := krolik.nazwaKolejki(klucz)
-// 	args := amqp.Table{"x-dead-letter-exchange": krolik.dlx}
-// 	_, err := krolik.ch.QueueDeclare(
-// 		nazwaKolejki, // name of the queue
-// 		true,         // durable
-// 		false,        // delete kiedy nieużyta przez klienta
-// 		false,        // exclusive
-// 		false,        // noWait
-// 		args,         // arguments
-// 	)
-// 	if err != nil {
-// 		log.Fatalf("[RabbitMQ] błąd QueueDeclare(): %v", err)
-// 	}
+	if kr == nil {
+		kr = &krolik2{
+			conn: map[string]*amqp.Connection{},
+			exs:  map[string]*Ex{},
+		}
+	}
 
-// 	// Przyogotowanie kolejki dla odrzuconych.
-// 	nazwaOdrzucone := krolik.nazwaOdrzucone(klucz)
-// 	_, err = krolik.ch.QueueDeclare(
-// 		nazwaOdrzucone, // name of the queue
-// 		true,           // durable
-// 		false,          // delete kiedy nieużyta przez klienta
-// 		false,          // exclusive
-// 		false,          // noWait
-// 		nil,            // arguments
-// 	)
-// 	if err != nil {
-// 		log.Fatalf("[RabbitMQ] błąd QueueDeclare(): %v", err)
-// 	}
+	ex := &Ex{
+		nazwa: konf.Exchanger.Nazwa,
+		kind:  konf.Exchanger.Kind,
+	}
 
-// 	log.Printf("[RabbitMQ.Bind] (%s)----/%s/---->[%s]", krolik.dlx, klucz, nazwaOdrzucone)
-// 	if err = krolik.ch.QueueBind(
-// 		nazwaOdrzucone, // name of the queue
-// 		klucz,          // bindingKey
-// 		krolik.dlx,     // sourceExchange
-// 		false,          // noWait
-// 		nil,            // arguments
-// 	); err != nil {
-// 		log.Fatalf("[RabbitMQ] błąd QueueBind(): %v", err)
-// 	}
+	err = ex.kanal(konf.Url)
+	if err != nil {
+		return nil, fmt.Errorf("błąd ex.polacz(): %v", err)
+	}
 
-// 	log.Printf("[RabbitMQ.Bind] (%s)-----/%s/---->[%s]", krolik.ex, klucz, nazwaKolejki)
-// 	if err = krolik.ch.QueueBind(
-// 		nazwaKolejki, // name of the queue
-// 		klucz,        // bindingKey
-// 		krolik.ex,    // sourceExchange
-// 		false,        // noWait
-// 		nil,          // arguments
-// 	); err != nil {
-// 		log.Fatalf("[RabbitMQ] błąd QueueBind(): %v", err)
-// 	}
+	if przygotujEx, ok := rodzajeEx[konf.Exchanger.Rodzaj]; ok {
+		if err := przygotujEx(ex); err != nil {
+			return nil, fmt.Errorf("błąd przygotujEx(): %v", err)
+		}
+	} else {
+		return nil, fmt.Errorf("błąd rodzajeEx[]: nieznany rodzaj exchangera")
+	}
 
-// 	deliveries, err := krolik.ch.Consume(
-// 		nazwaKolejki, // name
-// 		"",           // consumerTag, dostanę od serwera
-// 		false,        // noAck
-// 		false,        // exclusive
-// 		false,        // noLocal
-// 		false,        // noWait
-// 		nil,          // arguments
-// 	)
-// 	if err != nil {
-// 		log.Fatalf("[RabbitMQ] błąd Consume(): %v", err)
-// 	}
+	return ex, nil
+}
 
-// 	go func(deliveries <-chan amqp.Delivery) {
-// 		for d := range deliveries {
-// 			err := handler(d.Body)
-// 			if err != nil {
-// 				d.Nack( /*multiple*/ false /*requeue*/, false)
-// 				//d.Reject( /*requeue*/ false)
-// 			} else {
-// 				d.Ack( /*multiple*/ false)
-// 			}
-// 		}
-// 		log.Printf("[RabbitMQ] pobieranie zakończone: kanał zamknięty")
-// 	}(deliveries)
-// 	log.Printf("[RabbitMQ.Cons] <~~ [%s]", nazwaKolejki)
-// }
+type Ex struct {
+	ch         *amqp.Channel
+	nazwa      string
+	kind       string
+	publikuj   func(dane []byte) error
+	routingKey string
+}
 
-// // Wyslij do exchangera w Rabbicie
-// func (krolik *Krolik) Wyslij(klucz string, dane []byte) error {
-// 	return krolik.ch.Publish(
-// 		krolik.ex, // publikuj do exchangera
-// 		klucz,     // routuj do odpowiednich kolejek
-// 		false,     // nie interesuje nas czy jest jakaś kolejka
-// 		false,     // nie interesuje nas czy jest jakiś konsumer
-// 		amqp.Publishing{
-// 			Body:         dane,
-// 			DeliveryMode: amqp.Persistent,
-// 		})
-// }
-
-// // MusiWybierajOdrzucone podłącza handler do kolejki odrzuconych
-// // dla danego klucza
-// func (krolik *Krolik) MusiWybierajOdrzucone(klucz string, handler func([]byte)) {
-
-// 	nazwOdrzuc := krolik.nazwaOdrzucone(klucz)
-// 	deliveries, err := krolik.ch.Consume(
-// 		nazwOdrzuc, // nazwa kolejki
-// 		"",         // consumerTag, dostanę od serwera
-// 		false,      // noAck
-// 		false,      // exclusive
-// 		false,      // noLocal
-// 		false,      // noWait
-// 		nil,        // arguments
-// 	)
-// 	if err != nil {
-// 		log.Fatalf("[RabbitMQ] błąd Consume(): %v", err)
-// 	}
-
-// 	go func(deliveries <-chan amqp.Delivery) {
-// 		for d := range deliveries {
-// 			handler(d.Body)
-// 			// odrzucone zabrane na dobre
-// 			d.Ack(false)
-// 		}
-// 		log.Printf("[RabbitMQ] pobieranie zakończone: kanał zamknięty")
-// 		// TODO: Jakoś trzebaby gdzieś zareagować na powyższe?
-// 	}(deliveries)
-// 	log.Printf("[RabbitMQ.Cons] <~~ [%s]", nazwOdrzuc)
-
-// }
-
-// func (krolik *Krolik) nazwaKolejki(klucz string) string {
-// 	return fmt.Sprintf("%s %s", krolik.ex, klucz)
-// }
-
-// func (krolik *Krolik) nazwaOdrzucone(klucz string) string {
-// 	return fmt.Sprintf("%s %s", krolik.dlx, klucz)
-// }
-
-// // Loguj middleware
-// func Loguj(hand func([]byte) error) func([]byte) error {
-// 	return func(dane []byte) error {
-// 		st := time.Now()
-// 		err := hand(dane)
-// 		if err != nil {
-// 			log.Print(err)
-// 		}
-// 		log.Printf("królik middleware %v", time.Since(st))
-// 		return err
-// 	}
-// }
+func (ex *Ex) kanal(url string) error {
+	conn, err := kr.polaczenie(url)
+	if err != nil {
+		return fmt.Errorf("błąd kr.polaczenie(): %v", err)
+	}
+	ch, err := conn.Channel()
+	if err != nil {
+		return fmt.Errorf("błąd conn.Channel(): %v", err)
+	}
+	ex.ch = ch
+	return nil
+}
