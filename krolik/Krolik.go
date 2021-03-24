@@ -32,7 +32,7 @@ func MusiKrolik(krolikURL, krolikEX string) *Krolik {
 		krolikEX, // nazwa exchangera
 		"direct", // typ: direct, fanout, topic, headers
 		true,     // durable - czy ma przerzyć reset serwera
-		false,    // autodelete - czy skasować jeśli nie ma bindingów
+		false,    // autodelete - czy skasować jeśli brak podłączonych kolejek
 		false,    // internal
 		false,    // noWait
 		nil,      // arguments
@@ -189,7 +189,7 @@ func (krolik *Krolik) MusiWybierajOdrzucone(klucz string, handler func([]byte)) 
 }
 
 func (krolik *Krolik) nazwaKolejki(klucz string) string {
-	return fmt.Sprintf("kolejka %s %s", krolik.ex, klucz)
+	return fmt.Sprintf("%s %s", krolik.ex, klucz)
 }
 
 func (krolik *Krolik) nazwaOdrzucone(klucz string) string {

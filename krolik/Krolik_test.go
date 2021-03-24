@@ -14,7 +14,7 @@ func TestMusiKrolik(t *testing.T) {
 	// # żeby wyczyścić:
 	// curl -u guest:guest -X DELETE http://localhost:15672/api/vhosts/krolik
 
-	krolikURL := "amqp://guest:guest@localhost:5672/test"
+	krolikURL := "amqp://guest:guest@localhost:5672/krolik"
 	krolikEX := "zwierzaki"
 	zwierzaki := MusiKrolik(krolikURL, krolikEX)
 
@@ -27,6 +27,34 @@ func TestMusiKrolik(t *testing.T) {
 
 	time.Sleep(time.Second)
 }
+
+type Exchanger struct {
+	Url         string
+	Nazwa       string
+	Typ         TypExchangera
+	Durable     bool
+	AutoDelete  bool
+	Internal    bool
+	NoWait      bool
+	AlternateEx bool
+	Confirm     bool
+}
+
+type TypExchangera string
+
+const (
+	ExFanout  TypExchangera = "fanout"
+	ExDirect  TypExchangera = "direct"
+	ExTopic   TypExchangera = "topic"
+	ExHeaders TypExchangera = "headers"
+)
+
+func TestNowyKrolik(t *testing.T) {
+	EX := "url=amqp://guest:guest@localhost:5672/krolik;exch=zwierzaki;param=dead-letter,durable,direct"
+	krolikEX := "zwierzaki"
+}
+
+// ---
 
 func workerXxx(dane []byte) error {
 	fmt.Println("pobrałem z xxx:", string(dane))
