@@ -48,9 +48,10 @@ type konfig struct {
 }
 
 type Ex struct {
-	ch    *amqp.Channel
-	nazwa string
-	kind  string
+	ch       *amqp.Channel
+	nazwa    string
+	kind     string
+	publikuj func(dane []byte) error
 }
 
 func MusiNowyExchanger(conf string) *Ex {
@@ -87,7 +88,9 @@ func NowyExchanger(conf string) (*Ex, error) {
 	}
 
 	if przygotujEx, ok := rodzajeEx[konf.Exchanger.Rodzaj]; ok {
-		przygotujEx(ex)
+		if err := przygotujEx(ex); err != nil {
+			return nil, fmt.Errorf("błąd przygotujEx(): %v", err)
+		}
 	} else {
 		return nil, fmt.Errorf("błąd rodzajeEx[]: nieznany rodzaj exchangera")
 	}
@@ -95,11 +98,9 @@ func NowyExchanger(conf string) (*Ex, error) {
 	return nil, nil
 }
 
-func (ex *Ex) Close() {}
-
-func (ex *Ex) PublikujJSON(v interface{}) {}
-
-func (ex *Ex) Publikuj(dane []byte) {}
+func (ex *Ex) Close() {
+	ex.ch.Close()
+}
 
 func (ex *Ex) kanal(url string) error {
 	conn, err := kr.polaczenie(url)
@@ -128,12 +129,18 @@ func (kr *krolik2) polaczenie(url string) (*amqp.Connection, error) {
 	return conn, nil
 }
 
-var rodzajeEx = map[string]func(*Ex){
+func (ex *Ex) PublikujJSON(v interface{}) {
+
+}
+
+// ---
+
+var rodzajeEx = map[string]func(*Ex) error{
 	"szybki": przygotujSzybki,
 	"pewny":  przygotujPewny,
 }
 
-func przygotujSzybki(ex *Ex) {
+func przygotujSzybki(ex *Ex) error {
 	err := ex.ch.ExchangeDeclare(
 		ex.nazwa, // nazwa exchangera
 		ex.kind,  // typ: direct, fanout, topic, headers
@@ -144,8 +151,36 @@ func przygotujSzybki(ex *Ex) {
 		nil,      // arguments
 	)
 	if err != nil {
-		log.Fatalf("[RabbitMQ] błąd ExchangeDeclare(): %v", err)
+		return fmt.Errorf("błąd ExchangeDeclare(): %v", err)
 	}
+	ex.publish = ex.publikujSzybko
+	return nil
 }
 
-func przygotujPewny(ex *Ex) {}
+func (ex *Ex) publikujSzybko(dane []byte) error {
+	err := ex.ch.Publish(
+		"logs", // exchange
+		"",     // routing key
+		false,  // mandatory
+		false,  // immediate
+		amqp.Publishing{
+			ContentType: "text/plain",
+			Body:        []byte(body),
+		})
+}
+
+func przygotujPewny(ex *Ex) error {
+	err := ex.ch.ExchangeDeclare(
+		ex.nazwa, // nazwa exchangera
+		ex.kind,  // typ: direct, fanout, topic, headers
+		true,     // durable - czy ma przerzyć reset serwera
+		false,    // autodelete - czy skasować jeśli brak podłączonych kolejek
+		false,    // internal
+		false,    // noWait
+		nil,      // arguments
+	)
+	if err != nil {
+		return fmt.Errorf("błąd ExchangeDeclare(): %v", err)
+	}
+	return nil
+}
