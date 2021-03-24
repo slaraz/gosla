@@ -1,6 +1,7 @@
 package v2
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"testing"
@@ -11,11 +12,11 @@ import (
 
 func Test_NowyExchanger_PublikujJSON(t *testing.T) {
 	MOJ_EX := `---
-url: amqp://guest:guest@localhost:5672/test_krolika2
+url: amqp://guest:guest@localhost:5672/krolik
 exchanger:
   nazwa: moj testowy
-  kind: funout
-  rodzaj: szbyki
+  kind: fanout
+  rodzaj: szybki
 `
 
 	mojex := MusiNowyExchanger(MOJ_EX)
@@ -26,7 +27,9 @@ exchanger:
 		imie string
 	}{5, "ala"}
 
-	mojex.PublikujJSON(a)
+	if err := mojex.PublikujJSON(a); err != nil {
+		t.Errorf("błąd PublikujJSON(): %v", err)
+	}
 }
 
 // ---
@@ -41,28 +44,22 @@ type krolik2 struct {
 type konfig struct {
 	Url       string `yaml:"url"` // https://www.rabbitmq.com/uri-spec.html
 	Exchanger struct {
-		Nazwa  string `yaml:"nazwa"`
-		Kind   string `yaml:"kind"`
-		Rodzaj string `yaml:"rodzaj"`
+		Nazwa      string `yaml:"nazwa"`
+		Kind       string `yaml:"kind"`
+		Rodzaj     string `yaml:"rodzaj"`
+		RoutingKey string `yaml:"routingKey,omitempty"`
 	} `yaml:"exchanger"`
 }
 
-type Ex struct {
-	ch       *amqp.Channel
-	nazwa    string
-	kind     string
-	publikuj func(dane []byte) error
-}
-
 func MusiNowyExchanger(conf string) *Ex {
-	ex, err := NowyExchanger(conf)
+	ex, err := nowyExchanger(conf)
 	if err != nil {
 		log.Fatalf("błąd NowyExchanger(): %v", err)
 	}
 	return ex
 }
 
-func NowyExchanger(conf string) (*Ex, error) {
+func nowyExchanger(conf string) (*Ex, error) {
 	konf := konfig{}
 	err := yaml.Unmarshal([]byte(conf), &konf)
 	if err != nil {
@@ -79,7 +76,7 @@ func NowyExchanger(conf string) (*Ex, error) {
 
 	ex := &Ex{
 		nazwa: konf.Exchanger.Nazwa,
-		kind:  konf.Exchanger.Nazwa,
+		kind:  konf.Exchanger.Kind,
 	}
 
 	err = ex.kanal(konf.Url)
@@ -95,7 +92,17 @@ func NowyExchanger(conf string) (*Ex, error) {
 		return nil, fmt.Errorf("błąd rodzajeEx[]: nieznany rodzaj exchangera")
 	}
 
-	return nil, nil
+	return ex, nil
+}
+
+// ---
+
+type Ex struct {
+	ch         *amqp.Channel
+	nazwa      string
+	kind       string
+	publikuj   func(dane []byte) error
+	routingKey string
 }
 
 func (ex *Ex) Close() {
@@ -129,16 +136,27 @@ func (kr *krolik2) polaczenie(url string) (*amqp.Connection, error) {
 	return conn, nil
 }
 
-func (ex *Ex) PublikujJSON(v interface{}) {
-
+func (ex *Ex) PublikujJSON(v interface{}) error {
+	bajty, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("błąd json.Marshal(): %v", err)
+	}
+	err = ex.publikuj(bajty)
+	if err != nil {
+		return fmt.Errorf("błąd ex.publikuj(): %v", err)
+	}
+	return nil
 }
 
 // ---
 
 var rodzajeEx = map[string]func(*Ex) error{
 	"szybki": przygotujSzybki,
-	"pewny":  przygotujPewny,
+	//"zwykly": przygotujZwykly,
+	"pewny": przygotujPewny,
 }
+
+// szybki
 
 func przygotujSzybki(ex *Ex) error {
 	err := ex.ch.ExchangeDeclare(
@@ -153,21 +171,27 @@ func przygotujSzybki(ex *Ex) error {
 	if err != nil {
 		return fmt.Errorf("błąd ExchangeDeclare(): %v", err)
 	}
-	ex.publish = ex.publikujSzybko
+	ex.publikuj = ex.publikujSzybko
 	return nil
 }
 
-func (ex *Ex) publikujSzybko(dane []byte) error {
+func (ex *Ex) publikujSzybko(bajty []byte) error {
 	err := ex.ch.Publish(
-		"logs", // exchange
-		"",     // routing key
-		false,  // mandatory
-		false,  // immediate
+		ex.nazwa,
+		ex.routingKey,
+		false, // mandatory
+		false, // immediate
 		amqp.Publishing{
-			ContentType: "text/plain",
-			Body:        []byte(body),
+			// tu można poszaleć! patrz inne parametry amqp.Publishing
+			Body: bajty,
 		})
+	if err != nil {
+		return fmt.Errorf("błąd ch.Publish(): %v", err)
+	}
+	return nil
 }
+
+// pewny
 
 func przygotujPewny(ex *Ex) error {
 	err := ex.ch.ExchangeDeclare(
