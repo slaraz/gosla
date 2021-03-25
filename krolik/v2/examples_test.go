@@ -13,6 +13,7 @@ exchanger:
   nazwa: moj testowy
   kind: fanout
   rodzaj: std
+queue: 
 `
 
 	mojex := MusiNowyExchanger(MOJ_EX)
@@ -27,6 +28,8 @@ exchanger:
 		t.Errorf("błąd PublikujJSON(): %v", err)
 	}
 	err := mojex.Close()
-	time.Sleep(100 * time.Millisecond)
+	for {
+		time.Sleep(time.Second)
+	}
 	fmt.Println(err)
 }

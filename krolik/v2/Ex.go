@@ -1,0 +1,62 @@
+package v2
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/streadway/amqp"
+)
+
+type Ex struct {
+	ch         *amqp.Channel
+	nazwa      string
+	kind       string
+	publikuj   func(dane []byte) error
+	routingKey string
+}
+
+func (ex *Ex) PublikujJSON(v interface{}) error {
+	bajty, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("błąd json.Marshal(): %v", err)
+	}
+	err = ex.publikuj(bajty)
+	if err != nil {
+		return fmt.Errorf("błąd ex.publikuj(): %v", err)
+	}
+	return nil
+}
+
+func (ex *Ex) Close() error {
+	if ex.ch != nil {
+		if err := ex.ch.Close(); err != nil {
+			return fmt.Errorf("błąd ch.Close(): %v", err)
+		}
+	}
+	return nil
+}
+
+func nowyEx(konfEx konfiguracjaEx) (*Ex, error) {
+	ex := &Ex{
+		nazwa:      konfEx.nazwa,
+		kind:       konfEx.kind,
+		routingKey: konfEx.routingKey,
+	}
+
+	ch, err := kanal(konfEx.url)
+	if err != nil {
+		return nil, fmt.Errorf("błąd ex.polacz(): %v", err)
+	}
+	ex.ch = ch
+
+	if przygotujEx, ok := rodzajeEx[konfEx.rodzaj]; ok {
+		if err := przygotujEx(ex); err != nil {
+			return nil, fmt.Errorf("błąd przygotujEx(): %v", err)
+		}
+	} else {
+		return nil, fmt.Errorf("błąd rodzajeEx[]: nieznany rodzaj exchangera")
+	}
+
+	return ex, nil
+}
+
