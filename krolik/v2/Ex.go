@@ -3,16 +3,24 @@ package v2
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/streadway/amqp"
 )
 
-type Ex struct {
-	ch         *amqp.Channel
-	nazwa      string
-	kind       string
-	publikuj   func(dane []byte) error
-	routingKey string
+func MusiNowyExchanger(conf string) *Ex {
+	konfEx, err := parsujKonf(conf)
+	if err != nil {
+		log.Fatalf("błąd parsujYAML(): %v", err)
+	}
+	log.Println(konfEx)
+
+	ex, err := nowyEx(konfEx)
+	if err != nil {
+		log.Fatalf("błąd NowyExchanger(): %v", err)
+	}
+
+	return ex
 }
 
 func (ex *Ex) PublikujJSON(v interface{}) error {
@@ -36,6 +44,18 @@ func (ex *Ex) Close() error {
 	return nil
 }
 
+type Ex struct {
+	ch         *amqp.Channel
+	nazwa      string
+	kind       string
+	publikuj   func(dane []byte) error
+	routingKey string
+}
+
+type konfiguracjaEx struct {
+	url, nazwa, kind, rodzaj, routingKey string
+}
+
 func nowyEx(konfEx konfiguracjaEx) (*Ex, error) {
 	ex := &Ex{
 		nazwa:      konfEx.nazwa,
@@ -49,7 +69,7 @@ func nowyEx(konfEx konfiguracjaEx) (*Ex, error) {
 	}
 	ex.ch = ch
 
-	if przygotujEx, ok := rodzajeEx[konfEx.rodzaj]; ok {
+	if przygotujEx, ok := rozneEx[konfEx.rodzaj]; ok {
 		if err := przygotujEx(ex); err != nil {
 			return nil, fmt.Errorf("błąd przygotujEx(): %v", err)
 		}
@@ -59,4 +79,3 @@ func nowyEx(konfEx konfiguracjaEx) (*Ex, error) {
 
 	return ex, nil
 }
-

@@ -28,8 +28,6 @@ queue:
 		t.Errorf("błąd PublikujJSON(): %v", err)
 	}
 	err := mojex.Close()
-	for {
-		time.Sleep(time.Second)
-	}
+	time.Sleep(time.Second)
 	fmt.Println(err)
 }

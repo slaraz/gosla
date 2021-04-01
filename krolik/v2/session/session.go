@@ -10,15 +10,6 @@ import (
 	"github.com/streadway/amqp"
 )
 
-// This exports a Session object that wraps this library. It
-// automatically reconnects when the connection fails, and
-// blocks all pushes until the connection succeeds. It also
-// confirms every outgoing message, so none are lost.
-// It doesn't automatically ack each message, but leaves that
-// to the parent process, since it is usage-dependent.
-//
-// Try running this in one terminal, and `rabbitmq-server` in another.
-// Stop & restart RabbitMQ to see how the queue reacts.
 func main() {
 	name := "job_queue"
 	addr := "amqp://guest:guest@localhost:5672/"
@@ -44,18 +35,13 @@ type Session struct {
 	notifyConnClose chan *amqp.Error
 	notifyChanClose chan *amqp.Error
 	notifyConfirm   chan amqp.Confirmation
-	isReady         bool
+	gotowe          bool
 }
 
 const (
-	// When reconnecting to the server after connection failure
 	reconnectDelay = 5 * time.Second
-
-	// When setting up the channel after a channel exception
-	reInitDelay = 2 * time.Second
-
-	// When resending messages the server didn't confirm
-	resendDelay = 5 * time.Second
+	reInitDelay    = 2 * time.Second
+	resendDelay    = 5 * time.Second
 )
 
 var (
@@ -72,100 +58,79 @@ func New(name string, addr string) *Session {
 		name:   name,
 		done:   make(chan bool),
 	}
-	go session.handleReconnect(addr)
+	go session.pilnujPolaczenia(addr)
 	return &session
 }
 
-// handleReconnect will wait for a connection error on
+// pilnujPolaczenia will wait for a connection error on
 // notifyConnClose, and then continuously attempt to reconnect.
-func (session *Session) handleReconnect(addr string) {
-	for {
-		session.isReady = false
-		log.Println("Attempting to connect")
+func (session *Session) pilnujPolaczenia(addr string) {
+REDIAL:
+	session.gotowe = false
+	log.Println("Attempting to connect")
 
-		conn, err := amqp.Dial(addr)
+	conn, err := amqp.Dial(addr)
 
-		if err != nil {
-			log.Println("Failed to connect. Retrying...")
-
-			select {
-			case <-session.done:
-				return
-			case <-time.After(reconnectDelay):
-			}
-			continue
-		}
-
-		// takes a new connection to the queue,
-		// update the close listener to reflect this.
-		session.connection = conn
-		session.notifyConnClose = make(chan *amqp.Error)
-		session.connection.NotifyClose(session.notifyConnClose)
-
-		log.Println("Connected!")
-
-		if done := session.handleReInit(conn); done {
-			break
-		}
-	}
-}
-
-// handleReconnect will wait for a channel error
-// and then continuously attempt to re-initialize both channels
-func (session *Session) handleReInit(conn *amqp.Connection) bool {
-	for {
-		session.isReady = false
-
-		err := session.init(conn)
-
-		if err != nil {
-			log.Println("Failed to initialize channel. Retrying...")
-
-			select {
-			case <-session.done:
-				return true
-			case <-time.After(reInitDelay):
-			}
-			continue
-		}
-
-		// czeka na koniec (sesja-Close, conn-Close, chan-Close)
+	if err != nil {
+		log.Println("Failed to connect. Retrying...")
 		select {
 		case <-session.done:
-			return true
-		case <-session.notifyConnClose:
-			log.Println("Connection closed. Reconnecting...")
-			return false
-		case <-session.notifyChanClose:
-			log.Println("Channel closed. Re-running init...")
+			return
+		case <-time.After(reconnectDelay):
+		}
+		goto REDIAL
+	}
+
+	session.connection = conn
+	session.notifyConnClose = session.connection.NotifyClose(make(chan *amqp.Error))
+	log.Println("Connected!")
+
+REINIT:
+	session.gotowe = false
+
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Println("Failed to initialize channel. Retrying...")
+
+		select {
+		case <-time.After(reInitDelay):
+			goto REINIT
+		case <-session.done:
+			return
 		}
 	}
-}
 
-// init will initialize channel & declare queue
-func (session *Session) init(conn *amqp.Connection) error {
-	ch, err := conn.Channel()
-
+	err = session.przygotujQuełełe(ch)
 	if err != nil {
-		return err
+		log.Println("Failed to initialize channel. Retrying...")
+
+		select {
+		case <-time.After(reInitDelay):
+			goto REINIT
+		case <-session.done:
+			return
+		}
 	}
 
-	session.przygotujQue(ch)
-	if err != nil {
-		return err
-	}
-
-	// takes a new channel to the queue,
-	// and update the channel listeners to reflect this.
 	session.channel = ch
 	session.notifyChanClose = ch.NotifyClose(make(chan *amqp.Error))
-	session.isReady = true
+	session.gotowe = true
 	log.Println("Setup!")
 
-	return nil
+	// czeka na koniec (sesja-Close, conn-Close, chan-Close)
+	select {
+	case <-session.notifyConnClose:
+		log.Println("Connection closed. Reconnecting...")
+		goto REDIAL
+	case <-session.notifyChanClose:
+		log.Println("Channel closed. Re-running init...")
+		goto REINIT
+	case <-session.done:
+		return
+	}
 }
 
-func (session *Session) przygotujQue(ch *amqp.Channel) error {
+func (session *Session) przygotujQuełełe(ch *amqp.Channel) error {
 	err := ch.Confirm(false)
 
 	if err != nil {
@@ -195,7 +160,7 @@ func (session *Session) przygotujQue(ch *amqp.Channel) error {
 // This will block until the server sends a confirm. Errors are
 // only returned if the push action itself fails, see UnsafePush.
 func (session *Session) Push(data []byte) error {
-	if !session.isReady {
+	if !session.gotowe {
 		return errors.New("failed to push push: not connected")
 	}
 	for {
@@ -226,7 +191,7 @@ func (session *Session) Push(data []byte) error {
 // No guarantees are provided for whether the server will
 // recieve the message.
 func (session *Session) UnsafePush(data []byte) error {
-	if !session.isReady {
+	if !session.gotowe {
 		return errNotConnected
 	}
 	return session.channel.Publish(
@@ -246,7 +211,7 @@ func (session *Session) UnsafePush(data []byte) error {
 // successfully processed, or delivery.Nack when it fails.
 // Ignoring this will cause data to build up on the server.
 func (session *Session) Stream() (<-chan amqp.Delivery, error) {
-	if !session.isReady {
+	if !session.gotowe {
 		return nil, errNotConnected
 	}
 	return session.channel.Consume(
@@ -262,7 +227,7 @@ func (session *Session) Stream() (<-chan amqp.Delivery, error) {
 
 // Close will cleanly shutdown the channel and connection.
 func (session *Session) Close() error {
-	if !session.isReady {
+	if !session.gotowe {
 		return errAlreadyClosed
 	}
 	err := session.channel.Close()
@@ -274,6 +239,6 @@ func (session *Session) Close() error {
 		return err
 	}
 	close(session.done)
-	session.isReady = false
+	session.gotowe = false
 	return nil
 }

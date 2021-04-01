@@ -6,7 +6,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-var rodzajeEx = map[string]func(*Ex) error{
+var rozneEx = map[string]func(*Ex) error{
 	"std": przygotujStd,
 	//"szybki": przygotujSzybki,
 	//"pewny": przygotujPewny,

@@ -2,28 +2,29 @@ package v2
 
 import (
 	"fmt"
-	"log"
 
 	"gopkg.in/yaml.v3"
 )
 
-type konfiguracjaEx struct {
-	url, nazwa, kind, rodzaj, routingKey string
+
+// parsujKonf zwraca pierwszą poprawnie sparsowaną konfigurację.
+func parsujKonf(conf string) (konfiguracjaEx, error) {
+	for i, f := range rozneParsery {
+		konfEx, err := f(conf)
+		if i == len(rozneParsery)-1 && err != nil {
+			return konfiguracjaEx{}, fmt.Errorf("nierozpoznana konfiguracja")
+		}
+		if err != nil {
+			continue
+		}
+		return konfEx, nil
+	}
+	// Tu nigdy nie dojdzie.
+	return konfiguracjaEx{}, nil 
 }
 
-func MusiNowyExchanger(conf string) *Ex {
-	konfEx, err := parsujYAML(conf)
-	if err != nil {
-		log.Fatalf("błąd parsujYAML(): %v", err)
-	}
-	log.Println(konfEx)
-
-	ex, err := nowyEx(konfEx)
-	if err != nil {
-		log.Fatalf("błąd NowyExchanger(): %v", err)
-	}
-
-	return ex
+var rozneParsery = []func(string) (konfiguracjaEx, error){
+	parsujYAML,
 }
 
 // YAML
@@ -52,3 +53,7 @@ func parsujYAML(conf string) (konfiguracjaEx, error) {
 		routingKey: yml.Exchanger.RoutingKey,
 	}, nil
 }
+
+// JSON
+
+// CSV
