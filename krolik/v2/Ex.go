@@ -8,25 +8,21 @@ import (
 	"github.com/streadway/amqp"
 )
 
-func MusiNowyExchanger(conf string) *Ex {
-	konfEx, err := parsujKonf(conf)
-	if err != nil {
-		log.Fatalf("błąd parsujYAML(): %v", err)
-	}
-	log.Println(konfEx)
-
-	ex, err := nowyEx(konfEx)
+func MusiExchanger(url, nazwa, rodzaj, kind string) *Ex {
+	ex, err := nowyEx(url, nazwa, rodzaj, kind)
 	if err != nil {
 		log.Fatalf("błąd NowyExchanger(): %v", err)
 	}
-
 	return ex
 }
 
-func (ex *Ex) PublikujJSON(v interface{}) error {
+func (ex *Ex) WyslijJSON(v interface{}) error {
 	bajty, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("błąd json.Marshal(): %v", err)
+	}
+	if ex.publikuj == nil {
+		return fmt.Errorf("błąd ex.pulikuj == nil")
 	}
 	err = ex.publikuj(bajty)
 	if err != nil {
@@ -36,50 +32,36 @@ func (ex *Ex) PublikujJSON(v interface{}) error {
 }
 
 func (ex *Ex) Close() error {
-	if ex.ch != nil {
-		if err := ex.ch.Close(); err != nil {
-			return fmt.Errorf("błąd ch.Close(): %v", err)
-		}
+	if ex.sesja != nil {
+		ex.sesja.Close()
 	}
 	return nil
 }
 
 type Ex struct {
-	ch         *amqp.Channel
-	nazwa      string
-	kind       string
-	publikuj   func(dane []byte) error
-	routingKey string
+	sesja    *sesjaa
+	nazwa    string
+	kind     string
+	publikuj func(dane []byte) error
 }
 
-type konfiguracjaEx struct {
-	url,
-	nazwa,
-	kind,
-	rodzaj,
-	routingKey string
-}
-
-func nowyEx(konfEx konfiguracjaEx) (*Ex, error) {
+func nowyEx(url, nazwa, rodzaj, kind string) (*Ex, error) {
 	ex := &Ex{
-		nazwa:      konfEx.nazwa,
-		kind:       konfEx.kind,
-		routingKey: konfEx.routingKey,
+		nazwa: nazwa,
+		kind:  kind,
 	}
 
-	ch, err := kanal(konfEx.url)
-	if err != nil {
-		return nil, fmt.Errorf("błąd ex.polacz(): %v", err)
+	przygotujEx, ok := rozneEx[rodzaj]
+	if !ok {
+		return nil, fmt.Errorf("rozneEx[]: nieznany rodzaj exchangera")
 	}
-	ex.ch = ch
+	przygotuj := func(chann *amqp.Channel) error {
+		log.Printf("[Królik.Ex] Przygotowuję -> [%q:%s:%s]", nazwa, rodzaj, kind)
+		return przygotujEx(ex, chann)
+	}
 
-	if przygotujEx, ok := rozneEx[konfEx.rodzaj]; ok {
-		if err := przygotujEx(ex); err != nil {
-			return nil, fmt.Errorf("błąd przygotujEx(): %v", err)
-		}
-	} else {
-		return nil, fmt.Errorf("błąd rodzajeEx[]: nieznany rodzaj exchangera")
-	}
+	sesja := Otworz(url, przygotuj)
+	ex.sesja = sesja
 
 	return ex, nil
 }

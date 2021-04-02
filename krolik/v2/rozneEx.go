@@ -6,7 +6,7 @@ import (
 	"github.com/streadway/amqp"
 )
 
-var rozneEx = map[string]func(*Ex) error{
+var rozneEx = map[string]func(*Ex, *amqp.Channel) error{
 	"std": przygotujStd,
 	//"szybki": przygotujSzybki,
 	//"pewny": przygotujPewny,
@@ -14,10 +14,10 @@ var rozneEx = map[string]func(*Ex) error{
 
 // std
 
-func przygotujStd(ex *Ex) error {
-	err := ex.ch.ExchangeDeclare(
+func przygotujStd(ex *Ex, chann *amqp.Channel) error {
+	err := chann.ExchangeDeclare(
 		ex.nazwa, // nazwa exchangera
-		ex.kind,  // sposób routingu: direct, fanout, topic, headers
+		ex.kind,  // sposób routingu: fanout, topic, headers
 		true,     // durable - czy ma przeżyć restart serwera
 		false,    // autodelete - czy skasować jeśli brak podłączonych kolejek
 		false,    // internal - false oznacza moża normalnie publikować z zewnątrz
@@ -25,17 +25,19 @@ func przygotujStd(ex *Ex) error {
 		nil,      // arguments
 	)
 	if err != nil {
-		return fmt.Errorf("błąd ExchangeDeclare(): %v", err)
+		return fmt.Errorf("ExchangeDeclare(): %v", err)
 	}
 	ex.publikuj = ex.publikujStd
-	logujKanal(ex.ch)
 	return nil
 }
 
 func (ex *Ex) publikujStd(bajty []byte) error {
-	err := ex.ch.Publish(
+	if !ex.sesja.czyOK {
+		return fmt.Errorf("brak połączenia")
+	}
+	err := ex.sesja.chann.Publish(
 		ex.nazwa,
-		ex.routingKey,
+		"",    // RoutingKey - dla exchangera typu topic
 		false, // mandatory - czy upewnić się, że wiadomość gdzieś trafi (w wypadku braku kolejek lub zły routing - exception)
 		false, // immediate - deprecated
 		amqp.Publishing{
@@ -43,11 +45,9 @@ func (ex *Ex) publikujStd(bajty []byte) error {
 			Body: bajty,
 		})
 	if err != nil {
-		return fmt.Errorf("błąd ch.Publish(): %v", err)
+		return fmt.Errorf("ch.Publish(): %v", err)
 	}
 	return nil
 }
 
 // pewny
-
-// szybki
