@@ -53,7 +53,11 @@ type Ex struct {
 }
 
 type konfiguracjaEx struct {
-	url, nazwa, kind, rodzaj, routingKey string
+	url,
+	nazwa,
+	kind,
+	rodzaj,
+	routingKey string
 }
 
 func nowyEx(konfEx konfiguracjaEx) (*Ex, error) {
