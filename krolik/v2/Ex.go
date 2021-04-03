@@ -11,7 +11,7 @@ import (
 func MusiExchanger(url, nazwa, rodzaj, kind string) *Ex {
 	ex, err := nowyEx(url, nazwa, rodzaj, kind)
 	if err != nil {
-		log.Fatalf("błąd NowyExchanger(): %v", err)
+		log.Fatalf("[Królik.Ex] błąd MusiExchanger(): %v", err)
 	}
 	return ex
 }
@@ -19,23 +19,22 @@ func MusiExchanger(url, nazwa, rodzaj, kind string) *Ex {
 func (ex *Ex) WyslijJSON(v interface{}) error {
 	bajty, err := json.Marshal(v)
 	if err != nil {
-		return fmt.Errorf("błąd json.Marshal(): %v", err)
+		return fmt.Errorf("json.Marshal(): %v", err)
 	}
 	if ex.publikuj == nil {
-		return fmt.Errorf("błąd ex.pulikuj == nil")
+		return fmt.Errorf("ex.pulikuj == nil")
 	}
 	err = ex.publikuj(bajty)
 	if err != nil {
-		return fmt.Errorf("błąd ex.publikuj(): %v", err)
+		return fmt.Errorf("ex.publikuj(): %v", err)
 	}
 	return nil
 }
 
-func (ex *Ex) Close() error {
+func (ex *Ex) Close() {
 	if ex.sesja != nil {
 		ex.sesja.Close()
 	}
-	return nil
 }
 
 type Ex struct {

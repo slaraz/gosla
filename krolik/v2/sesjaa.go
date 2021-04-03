@@ -112,15 +112,16 @@ REINIT:
 
 	sesja.chann = chann
 	sesja.notifyChannClose = chann.NotifyClose(make(chan *amqp.Error))
-
-	// Sesja otwarta.
 	sesja.czyOK = true
 	log.Println("[Królik.Sesja] Rdy.")
 	raz.Do(func() { rdy <- true })
 
+	// Sesja pracuje.
+
 	// Czekamy na jakiś koniec.
 	select {
 	case err := <-sesja.notifyConnClose:
+		<-sesja.notifyChannClose // tej linijki szukałem 1/2 dnia, zamyka (chan *amqp.Delivery)
 		log.Printf("[Królik.Sesja] Połączenie zamknięte: %v", err)
 		goto REDIAL
 	case err := <-sesja.notifyChannClose:

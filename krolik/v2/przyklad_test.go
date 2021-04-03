@@ -13,7 +13,7 @@ func Test_NowyExchanger_PublikujJSON(t *testing.T) {
 	mojex := MusiExchanger(RABBIT, "moj testowy", "std", "fanout")
 	defer mojex.Close()
 
-	mojqu := MusiQuełełe(RABBIT, "moja testowa", "xxx")
+	mojqu := MusiQuełełe(RABBIT, "moja testowa", "moj testowy", "xxx", hand)
 	defer mojqu.Close()
 
 	// Wysyłamy do Rabbita.
@@ -36,12 +36,21 @@ func Test_NowyExchanger_PublikujJSON(t *testing.T) {
 	if wys != odb {
 		t.Fatalf("błąd królika:\nwysłałem: %v\nodebrałem: %v", wys, odb)
 	}
+	time.Sleep(time.Second)
+}
+
+func hand(bajty []byte) error {
+	log.Printf("Odebrałem: '%s'", string(bajty))
+	return nil
 }
 
 func Test_WyslijJSON_NieskonczonaPetla(t *testing.T) {
 	// Podłączamy się do Rabbita.
 	mojex := MusiExchanger(RABBIT, "moj testowy", "std", "fanout")
 	defer mojex.Close()
+
+	mojqu := MusiQuełełe(RABBIT, "moja testowa", "moj testowy", "xxx", hand)
+	defer mojqu.Close()
 
 	// Wysyłamy do Rabbita.
 	type dane struct {
