@@ -7,14 +7,14 @@ import (
 )
 
 var rozneEx = map[string]func(*Ex, *amqp.Channel) error{
-	"std": przygotujStd,
+	"stdex": stdEx,
 	//"szybki": przygotujSzybki,
 	//"pewny": przygotujPewny,
 }
 
-// std
+// --- stdex ---
 
-func przygotujStd(ex *Ex, chann *amqp.Channel) error {
+func stdEx(ex *Ex, chann *amqp.Channel) error {
 	if err := chann.ExchangeDeclare(
 		ex.nazwa, // nazwa exchangera
 		ex.kind,  // sposób routingu: fanout, topic, headers
@@ -26,11 +26,11 @@ func przygotujStd(ex *Ex, chann *amqp.Channel) error {
 	); err != nil {
 		return fmt.Errorf("ExchangeDeclare(): %v", err)
 	}
-	ex.publikuj = ex.publikujStd
+	ex.publikuj = ex.publikujStdEx
 	return nil
 }
 
-func (ex *Ex) publikujStd(bajty []byte) error {
+func (ex *Ex) publikujStdEx(bajty []byte) error {
 	if !ex.sesja.czyOK {
 		return fmt.Errorf("brak połączenia")
 	}
@@ -44,9 +44,9 @@ func (ex *Ex) publikujStd(bajty []byte) error {
 			Body: bajty,
 		},
 	); err != nil {
-		return fmt.Errorf("ch.Publish(): %v", err)
+		return fmt.Errorf("ex.sesja.chann.Publish(): %v", err)
 	}
 	return nil
 }
 
-// pewny
+// --- pewny ---

@@ -16,27 +16,6 @@ func MusiExchanger(url, nazwa, rodzaj, kind string) *Ex {
 	return ex
 }
 
-func (ex *Ex) WyslijJSON(v interface{}) error {
-	bajty, err := json.Marshal(v)
-	if err != nil {
-		return fmt.Errorf("json.Marshal(): %v", err)
-	}
-	if ex.publikuj == nil {
-		return fmt.Errorf("ex.pulikuj == nil")
-	}
-	err = ex.publikuj(bajty)
-	if err != nil {
-		return fmt.Errorf("ex.publikuj(): %v", err)
-	}
-	return nil
-}
-
-func (ex *Ex) Close() {
-	if ex.sesja != nil {
-		ex.sesja.Close()
-	}
-}
-
 type Ex struct {
 	sesja    *sesjaa
 	nazwa    string
@@ -63,4 +42,25 @@ func nowyEx(url, nazwa, rodzaj, kind string) (*Ex, error) {
 	ex.sesja = sesja
 
 	return ex, nil
+}
+
+func (ex *Ex) WyslijJSON(v interface{}) error {
+	bajty, err := json.Marshal(v)
+	if err != nil {
+		return fmt.Errorf("json.Marshal(): %v", err)
+	}
+	if ex.publikuj == nil {
+		return fmt.Errorf("ex.publikuj == nil")
+	}
+	err = ex.publikuj(bajty)
+	if err != nil {
+		return fmt.Errorf("ex.publikuj(): %v", err)
+	}
+	return nil
+}
+
+func (ex *Ex) Close() {
+	if ex.sesja != nil {
+		ex.sesja.Close()
+	}
 }
