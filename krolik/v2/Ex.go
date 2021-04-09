@@ -34,7 +34,7 @@ func nowyEx(url, nazwa, rodzaj, kind string) (*Ex, error) {
 		return nil, fmt.Errorf("rozneEx[]: nieznany rodzaj exchangera")
 	}
 	przygotuj := func(chann *amqp.Channel, log *log.Logger) error {
-		log.Printf("Przygotowuję [%q:%s:%s]", nazwa, rodzaj, kind)
+		log.Printf("Przygotowuję [%s->%s]", rodzaj, kind)
 		return przygotujEx(ex, chann)
 	}
 

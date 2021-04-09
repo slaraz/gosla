@@ -8,15 +8,15 @@ import (
 )
 
 type baza struct {
-	items map[int]*dbItem
+	items []*dbItem
 }
 
 func nowaBaza(rozmiar int) baza {
 	db := baza{}
-	db.items = make(map[int]*dbItem, rozmiar)
-	for i := 1; i <= rozmiar; i++ {
+	db.items = make([]*dbItem, rozmiar)
+	for i := 0; i < rozmiar; i++ {
 		item := dbItem{id: i}
-		db.items[item.id] = &item
+		db.items[i] = &item
 	}
 	return db
 }
@@ -24,7 +24,7 @@ func nowaBaza(rozmiar int) baza {
 func (db baza) ids() <-chan int {
 	ch := make(chan int)
 	go func() {
-		for k, _ := range db.items {
+		for k := range db.items {
 			ch <- k
 		}
 		close(ch)
@@ -44,27 +44,15 @@ func (item dbItem) poprawny() bool {
 }
 
 func (db baza) WyslanyOK(id int) {
-	item, ok := db.items[id]
-	if !ok {
-		log.Fatal("item !ok", id)
-	}
-	item.wyslaniaOK++
+	db.items[id].wyslaniaOK++
 }
 
 func (db baza) WyslanyNOK(id int) {
-	item, ok := db.items[id]
-	if !ok {
-		log.Fatal("item !ok", id)
-	}
-	item.wyslaniaNOK++
+	db.items[id].wyslaniaNOK++
 }
 
 func (db baza) Odebrany(id int) {
-	item, ok := db.items[id]
-	if !ok {
-		log.Fatal("item !ok", id)
-	}
-	item.odebrania++
+	db.items[id].odebrania++
 }
 
 func (db baza) DrukujStats() {
@@ -126,24 +114,23 @@ func druk(txt string, ile int) {
 }
 
 func Test_GOŁA_db(t *testing.T) {
-	const ile = 1000 * 1000
+	const ile = 200 * 1000
 	db := nowaBaza(ile)
 	start := time.Now()
 	for id := range db.ids() {
-		db.WyslanyNOK(id)
+		db.WyslanyOK(id)
 		db.Odebrany(id)
 	}
-	czas := time.Since(start)
-	log.Printf("czas wysyłania: wszystkie = %v, jeden = %v, na sek = %.1f", czas, czas/ile, ile/czas.Seconds())
+	printSzybkosc(start, ile)
 	db.DrukujStats()
 }
 
-func Test_NAPIERAJ_baze(t *testing.T) {
-	const ile = 1000 * 1000
+func Test_NAPIERAJ_szybkie(t *testing.T) {
+	const ile = 200 * 1000
 	db := nowaBaza(ile)
 	// Podłączamy się do Rabbita.
-	mojex := MusiExchanger(RABBIT, "moj testowy", "stdex", "fanout")
-	mojqu := MusiQuełełe(RABBIT, "moja testowa", "moj testowy", "stdque", func(bajty []byte) error {
+	mojex := MusiExchanger(RABBIT, "testowy szybki", "stdex", "fanout")
+	mojqu := MusiQuełełe(RABBIT, "testowa szybka", "testowy szybki", "szybka", func(bajty []byte) error {
 		// Tylko potwierdzenie.
 		var id int
 		json.Unmarshal(bajty, &id)
@@ -168,9 +155,51 @@ func Test_NAPIERAJ_baze(t *testing.T) {
 		}
 	}
 	mojex.Close()
+	printSzybkosc(start, ile)
+	time.Sleep(5 * time.Second)
+	mojqu.Close()
+	time.Sleep(time.Second)
+	db.DrukujStats()
+}
+
+func printSzybkosc(start time.Time, ile int64) {
 	czas := time.Since(start)
-	log.Printf("czas wysyłania: wszystkie = %v, jeden = %v, na sek = %.1f", czas, czas/ile, ile/czas.Seconds())
-	time.Sleep(15 * time.Second)
+	ileK := ile/1000
+	log.Printf("czas wysyłania: %dk-> %v, jeden-> %v, %.1fk/s", ileK, czas, time.Duration(int64(czas)/ile), float64(ileK)/czas.Seconds())
+}
+
+func Test_NAPIERAJ_std(t *testing.T) {
+	const ile = 500 * 1000
+	db := nowaBaza(ile)
+	// Podłączamy się do Rabbita.
+	mojex := MusiExchanger(RABBIT, "testowy std", "stdex", "fanout")
+	mojqu := MusiQuełełe(RABBIT, "testowa std", "testowy std", "stdque", func(bajty []byte) error {
+		// Tylko potwierdzenie.
+		var id int
+		json.Unmarshal(bajty, &id)
+		db.Odebrany(id)
+		return nil
+	})
+
+	// Wysyłamy do Rabbita.
+	start := time.Now()
+	x := 0
+	for id := range db.ids() {
+		if err := mojex.WyslijJSON(id); err != nil {
+			db.WyslanyNOK(id)
+			log.Printf("błąd WyslijJSON: %v", err)
+			time.Sleep(time.Second)
+		} else {
+			db.WyslanyOK(id)
+		}
+		x++
+		if x%1e5 == 0 {
+			log.Printf("wysłałem %dk", x/1e3)
+		}
+	}
+	mojex.Close()
+	printSzybkosc(start, ile)
+	time.Sleep(5 * time.Second)
 	mojqu.Close()
 	time.Sleep(time.Second)
 	db.DrukujStats()

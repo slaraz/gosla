@@ -32,11 +32,11 @@ func MusiQuełełe(url, nazwa, bindEx, rodzaj string, handler QueHandler) *Que {
 
 	wybranyRodzajQue, ok := rozneQue[rodzaj]
 	if !ok {
-		log.Fatalln("rozneEx[]: nieznany rodzaj quełełe")
+		log.Fatalln("nieznany rodzaj quełełe")
 	}
 
 	przygotuj := func(chann *amqp.Channel, log *log.Logger) error {
-		log.Printf("Przygotowuję [%q:%s:%s]", nazwa, bindEx, rodzaj)
+		log.Printf("Przygotowuję [%s->%q]", rodzaj, bindEx)
 		qp := queParam{nazwa, bindEx}
 		err := wybranyRodzajQue.przygotuj(qp, chann)
 		if err != nil {
@@ -50,7 +50,7 @@ func MusiQuełełe(url, nazwa, bindEx, rodzaj string, handler QueHandler) *Que {
 		return nil
 	}
 
-	nazwaSesji := fmt.Sprintf("QUE(%s)", nazwa)
+	nazwaSesji := fmt.Sprintf("QUE<%s>", nazwa)
 	sesja := otworz(url, przygotuj, nazwaSesji)
 	que.sesja = sesja
 
@@ -72,7 +72,7 @@ func (que *Que) podepnijHandler(wiadomosci <-chan amqp.Delivery, odbierzDelivery
 	que.stopWrk = make(chan bool)
 	que.wrkWG.Add(1)
 	go func() {
-		log := log.New(os.Stdout, "[--->Que] ", 0)
+		log := log.New(os.Stdout, "[Que.Wrk] ", 0)
 	petla:
 		for {
 			select {
@@ -91,11 +91,11 @@ func (que *Que) podepnijHandler(wiadomosci <-chan amqp.Delivery, odbierzDelivery
 				log.Printf("brak wiadomości...")
 
 			case <-que.stopWrk:
-				log.Print("stopWrk")
+				log.Print("zatrzymuję")
 				break petla
 			}
 		}
 		que.wrkWG.Done()
-		log.Printf("KONIEC")
+		log.Printf("DONE")
 	}()
 }

@@ -19,7 +19,7 @@ type rodzajQue struct {
 
 var rozneQue = map[string]rodzajQue{
 	"stdque": {stdQue, stdKonsumuj, stdOdbierz},
-	//"szybki": przygotujSzybki,
+	"szybka": {szybkaQue, szybkaKonsumuj, szybkaOdbierz},
 	//"pewny": przygotujPewny,
 }
 
@@ -71,5 +71,47 @@ func stdOdbierz(wiad amqp.Delivery, handler QueHandler) error {
 			return fmt.Errorf("wiad.Ack(): %v", err)
 		}
 	}
+	return nil
+}
+
+// --- szybka ---
+
+func szybkaQue(que queParam, chann *amqp.Channel) error {
+	if _, err := chann.QueueDeclare(
+		que.nazwa,
+		true,  // Durable
+		false, // Delete when unused
+		false, // Exclusive
+		false, // No-wait
+		nil,   // Arguments
+	); err != nil {
+		return fmt.Errorf("chann.QueueDeclare(): %v", err)
+	}
+	if err := chann.QueueBind(
+		que.nazwa,  // name of the queue
+		"",         // bindingKey
+		que.bindTo, // sourceExchange
+		false,      // noWait
+		nil,        // arguments
+	); err != nil {
+		return fmt.Errorf("chann.QueueBind(): %v", err)
+	}
+	return nil
+}
+
+func szybkaKonsumuj(que queParam, chann *amqp.Channel) (<-chan amqp.Delivery, error) {
+	return chann.Consume(
+		que.nazwa, // name
+		"",        // consumerTag, dostanę od serwera
+		true,      // noAck
+		false,     // exclusive
+		false,     // noLocal - not suported by RabbitMQ
+		true,     // noWait
+		nil,       // arguments
+	)
+}
+
+func szybkaOdbierz(wiad amqp.Delivery, handler QueHandler) error {
+	handler(wiad.Body)
 	return nil
 }

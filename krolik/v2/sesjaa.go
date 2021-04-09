@@ -29,7 +29,7 @@ type sesjaa struct {
 func otworz(url string, przygotuj funcPrzygotuj, nazwaSesji string) *sesjaa {
 	wgDone := &sync.WaitGroup{}
 	sesja := &sesjaa{
-		nazwa:   "ses." + nazwaSesji,
+		nazwa:   nazwaSesji,
 		doneRQ:  make(chan struct{}),
 		doneACK: make(chan bool),
 	}
@@ -48,7 +48,7 @@ func (sesja *sesjaa) close() {
 }
 
 func (sesja *sesjaa) pilnujSesji(url string, rdy chan bool, przygotuj funcPrzygotuj) {
-	log := log.New(os.Stdout, fmt.Sprintf("[%s] ---> ", sesja.nazwa), 0)
+	log := log.New(os.Stdout, fmt.Sprintf("[%s] ", sesja.nazwa), 0)
 	raz := sync.Once{}
 	var chann *amqp.Channel
 	var notifyConnClose chan *amqp.Error
@@ -73,7 +73,7 @@ REDIAL:
 	}
 
 	notifyConnClose = conn.NotifyClose(make(chan *amqp.Error))
-	log.Printf("Połączony <=> AMQP %d-%d", conn.Major, conn.Minor)
+	//log.Printf("Połączony <=> AMQP %d-%d", conn.Major, conn.Minor)
 
 REINIT:
 	sesja.czyOK = false
@@ -115,7 +115,7 @@ REINIT:
 	sesja.chann = chann
 	notifyChannClose = chann.NotifyClose(make(chan *amqp.Error))
 	sesja.czyOK = true
-	log.Printf("Rdy.")
+	log.Printf("READY")
 	raz.Do(func() { rdy <- true })
 
 	// Sesja pracuje.
@@ -134,16 +134,16 @@ REINIT:
 	}
 
 DONE:
-	log.Printf("goto DONE")
+	log.Printf("zamykam")
 	if conn != nil {
-		log.Printf("conn.Close()")
+		//log.Printf("conn.Close()")
 		err := conn.Close()
-		log.Printf("conn.Closed")
+		//log.Printf("conn.Closed")
 		if err != nil {
 			log.Printf("błąd sesja.conn.Close(): %q", err)
 		}
 	}
-	log.Printf("pilnujDone <- true")
+	//log.Printf("pilnujDone <- true")
 	sesja.doneACK <- true
 	log.Printf("DONE")
 }
