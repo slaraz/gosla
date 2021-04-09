@@ -42,6 +42,8 @@ func (ex *Ex) publikujStdEx(bajty []byte) error {
 		amqp.Publishing{
 			// tu można poszaleć! patrz inne parametry amqp.Publishing
 			Body: bajty,
+			//DeliveryMode: amqp.Persistent,
+			DeliveryMode: amqp.Transient,
 		},
 	); err != nil {
 		return fmt.Errorf("ex.sesja.chann.Publish(): %v", err)

@@ -1,17 +1,36 @@
 package v2
 
 import (
+	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 
 	"github.com/streadway/amqp"
 )
 
-func Otworz(url string, przygotuj funcPrzygotuj) *sesjaa {
+const (
+	ponawianiePolaczPauza    = 5 * time.Second
+	ponawianieKanalPauza     = 5 * time.Second
+	ponawianiePrzygotujPauza = 5 * time.Second
+)
+
+type funcPrzygotuj func(*amqp.Channel, *log.Logger) error
+
+type sesjaa struct {
+	nazwa   string
+	czyOK   bool
+	doneRQ  chan struct{}
+	chann   *amqp.Channel
+	doneACK chan bool
+}
+
+func otworz(url string, przygotuj funcPrzygotuj, nazwaSesji string) *sesjaa {
 	wgDone := &sync.WaitGroup{}
 	sesja := &sesjaa{
-		doneRQ:       make(chan struct{}),
+		nazwa:   "ses." + nazwaSesji,
+		doneRQ:  make(chan struct{}),
 		doneACK: make(chan bool),
 	}
 	rdy := make(chan bool)
@@ -21,29 +40,15 @@ func Otworz(url string, przygotuj funcPrzygotuj) *sesjaa {
 	return sesja
 }
 
-func (sesja *sesjaa) Close() {
+func (sesja *sesjaa) close() {
 	sesja.czyOK = false
 	close(sesja.doneRQ)
 	<-sesja.doneACK
-	log.Println("[Królik.Sesja] sesja closed")
+	log.Printf("%q doneACK", sesja.nazwa)
 }
-
-type funcPrzygotuj func(*amqp.Channel) error
-
-type sesjaa struct {
-	czyOK            bool
-	doneRQ             chan struct{}
-	chann            *amqp.Channel
-	doneACK       chan bool
-}
-
-const (
-	ponawianiePolaczPauza    = 7 * time.Second
-	ponawianieKanalPauza     = 5 * time.Second
-	ponawianiePrzygotujPauza = 10 * time.Second
-)
 
 func (sesja *sesjaa) pilnujSesji(url string, rdy chan bool, przygotuj funcPrzygotuj) {
+	log := log.New(os.Stdout, fmt.Sprintf("[%s] ---> ", sesja.nazwa), 0)
 	raz := sync.Once{}
 	var chann *amqp.Channel
 	var notifyConnClose chan *amqp.Error
@@ -51,13 +56,13 @@ func (sesja *sesjaa) pilnujSesji(url string, rdy chan bool, przygotuj funcPrzygo
 
 REDIAL:
 	sesja.czyOK = false
-	log.Printf("[Królik.Sesja] Łączę -> %q", url)
+	log.Printf("Łączę -> %q", url)
 
 	conn, err := amqp.Dial(url)
 
 	if err != nil {
-		log.Printf("[Królik.Sesja] Błąd amqp.Dial(): %v", err)
-		log.Printf("[Królik.Sesja] Ponawiam za %v...", ponawianiePolaczPauza)
+		log.Printf("Błąd amqp.Dial(): %v", err)
+		log.Printf("Ponawiam za %v...", ponawianiePolaczPauza)
 
 		select {
 		case <-time.After(ponawianiePolaczPauza):
@@ -68,21 +73,21 @@ REDIAL:
 	}
 
 	notifyConnClose = conn.NotifyClose(make(chan *amqp.Error))
-	log.Printf("[Królik.Sesja] Połączony <=> AMQP %d-%d", conn.Major, conn.Minor)
+	log.Printf("Połączony <=> AMQP %d-%d", conn.Major, conn.Minor)
 
 REINIT:
 	sesja.czyOK = false
 
 	chann, err = conn.Channel()
 	if err != nil {
-		log.Printf("[Królik.Sesja] Błąd conn.Channel(): %v", err)
-		log.Printf("[Królik.Sesja] Ponawiam za %v...", ponawianieKanalPauza)
+		log.Printf("Błąd conn.Channel(): %v", err)
+		log.Printf("Ponawiam za %v...", ponawianieKanalPauza)
 
 		select {
 		case <-time.After(ponawianieKanalPauza):
 			goto REINIT
 		case err := <-notifyConnClose:
-			log.Printf("[Królik.Sesja] Połączenie zamknięte: %v", err)
+			log.Printf("Połączenie zamknięte: %v", err)
 			goto REDIAL
 		case <-sesja.doneRQ:
 			goto DONE
@@ -91,16 +96,16 @@ REINIT:
 
 	// ---
 
-	err = przygotuj(chann)
+	err = przygotuj(chann, log)
 	if err != nil {
-		log.Printf("[Królik.Sesja] Błąd sesja.przygotuj(): %v", err)
-		log.Printf("[Królik.Sesja] Ponawiam za %v...", ponawianiePrzygotujPauza)
+		log.Printf("Błąd sesja.przygotuj(): %v", err)
+		log.Printf("Ponawiam za %v...", ponawianiePrzygotujPauza)
 
 		select {
 		case <-time.After(ponawianiePrzygotujPauza):
 			goto REINIT
 		case err := <-notifyConnClose:
-			log.Printf("[Królik.Sesja] Połączenie zamknięte: %v", err)
+			log.Printf("Połączenie zamknięte: %v", err)
 			goto REDIAL
 		case <-sesja.doneRQ:
 			goto DONE
@@ -110,7 +115,7 @@ REINIT:
 	sesja.chann = chann
 	notifyChannClose = chann.NotifyClose(make(chan *amqp.Error))
 	sesja.czyOK = true
-	log.Println("[Królik.Sesja] Rdy.")
+	log.Printf("Rdy.")
 	raz.Do(func() { rdy <- true })
 
 	// Sesja pracuje.
@@ -119,35 +124,28 @@ REINIT:
 	select {
 	case err := <-notifyConnClose:
 		<-notifyChannClose // HACK: tej linijki szukałem 1/2 dnia, zamyka (chan *amqp.Delivery)
-		log.Printf("[Królik.Sesja] Połączenie zamknięte: %v", err)
+		log.Printf("Połączenie zamknięte: %v", err)
 		goto REDIAL
 	case err := <-notifyChannClose:
-		log.Printf("[Królik.Sesja] Kanał zamknięty: %v", err)
+		log.Printf("Kanał zamknięty: %v", err)
 		goto REINIT
 	case <-sesja.doneRQ:
 		goto DONE
 	}
 
 DONE:
-	if chann != nil {
-		err := chann.Close()
-		if err != nil {
-			log.Printf("błąd sesja.chann.Close(): %v", err)
-		}
-	}
-	//sesja.czekajNaWorkers(time.Second)
-
-	log.Println("[Królik.Sesja] DONE.", time.Since(start))
+	log.Printf("goto DONE")
 	if conn != nil {
+		log.Printf("conn.Close()")
 		err := conn.Close()
-		log.Println("sesja.conn.Closed", time.Since(start))
+		log.Printf("conn.Closed")
 		if err != nil {
-			log.Printf("[Królik.Sesja] błąd sesja.conn.Close(): %q", err)
+			log.Printf("błąd sesja.conn.Close(): %q", err)
 		}
 	}
-	log.Println("sesja.pilnujDone <- true", time.Since(start))
+	log.Printf("pilnujDone <- true")
 	sesja.doneACK <- true
+	log.Printf("DONE")
 }
 
 var start time.Time
-
