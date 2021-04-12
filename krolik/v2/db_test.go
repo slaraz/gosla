@@ -169,7 +169,7 @@ func printSzybkosc(start time.Time, ile int64) {
 }
 
 func Test_NAPIERAJ_std(t *testing.T) {
-	const ile = 500 * 1000
+	const ile = 2000 * 1000
 	db := nowaBaza(ile)
 	// Podłączamy się do Rabbita.
 	mojex := MusiExchanger(RABBIT, "testowy std", "stdex", "fanout")
@@ -199,7 +199,7 @@ func Test_NAPIERAJ_std(t *testing.T) {
 	}
 	mojex.Close()
 	printSzybkosc(start, ile)
-	time.Sleep(5 * time.Second)
+	time.Sleep(30 * time.Second)
 	mojqu.Close()
 	time.Sleep(time.Second)
 	db.DrukujStats()

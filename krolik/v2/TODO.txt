@@ -1,0 +1,5 @@
+
+- wrzucić do profitroom-serwera
+- refaktor katalogów i plików
+- funkcje plugin w ex zrobić jak w que
+- dead letters

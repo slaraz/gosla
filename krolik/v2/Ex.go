@@ -47,12 +47,22 @@ func nowyEx(url, nazwa, rodzaj, kind string) (*Ex, error) {
 }
 
 func (ex *Ex) WyslijJSON(v interface{}) error {
+	if ex.publikuj == nil {
+		return fmt.Errorf("ex.publikuj == nil")
+	}
+	if !ex.sesja.czyOK {
+		return fmt.Errorf("brak połączenia")
+	}
+	if ex.sesja.czyBlock {
+		return fmt.Errorf("połączenie blokowane przez serwer")
+	}
+	if !ex.sesja.czyFlow {
+		return fmt.Errorf("serwer prosi o łaskę (Flow)")
+	}
+
 	bajty, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("json.Marshal(): %v", err)
-	}
-	if ex.publikuj == nil {
-		return fmt.Errorf("ex.publikuj == nil")
 	}
 	err = ex.publikuj(bajty)
 	if err != nil {

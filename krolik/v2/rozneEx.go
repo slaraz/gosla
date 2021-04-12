@@ -31,9 +31,6 @@ func stdEx(ex *Ex, chann *amqp.Channel) error {
 }
 
 func (ex *Ex) publikujStdEx(bajty []byte) error {
-	if !ex.sesja.czyOK {
-		return fmt.Errorf("brak połączenia")
-	}
 	if err := ex.sesja.chann.Publish(
 		ex.nazwa,
 		"",    // RoutingKey - dla exchangera typu topic
@@ -69,9 +66,6 @@ func szybkiEx(ex *Ex, chann *amqp.Channel) error {
 }
 
 func (ex *Ex) publikujSzybkiEx(bajty []byte) error {
-	if !ex.sesja.czyOK {
-		return fmt.Errorf("brak połączenia")
-	}
 	if err := ex.sesja.chann.Publish(
 		ex.nazwa,
 		"",    // RoutingKey - dla exchangera typu topic
