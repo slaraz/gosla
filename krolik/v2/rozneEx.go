@@ -2,6 +2,7 @@ package v2
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/streadway/amqp"
 )
@@ -75,6 +76,7 @@ func (ex *Ex) publikujSzybkiEx(bajty []byte) error {
 			// tu można poszaleć! patrz inne parametry amqp.Publishing
 			Body:         bajty,
 			DeliveryMode: amqp.Transient,
+			Timestamp:    time.Now(),
 		},
 	); err != nil {
 		return fmt.Errorf("ex.sesja.chann.Publish(): %v", err)

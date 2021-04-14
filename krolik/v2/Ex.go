@@ -15,6 +15,17 @@ type Ex struct {
 	publikuj func(dane []byte) error
 }
 
+/*
+MusiExchanger tworzy podłączenie do exchangera RabbitMQ
+
+url    - https://www.rabbitmq.com/uri-spec.html
+
+nazwa  - nazwa exchangera
+
+rodzaj - wybór ze słownika przygotowanych w tym kodzie "stdex", "szybki", "pewny"
+
+kind   - "direct", "fanout", "topic", "headers"
+*/
 func MusiExchanger(url, nazwa, rodzaj, kind string) *Ex {
 	ex, err := nowyEx(url, nazwa, rodzaj, kind)
 	if err != nil {
@@ -34,11 +45,11 @@ func nowyEx(url, nazwa, rodzaj, kind string) (*Ex, error) {
 		return nil, fmt.Errorf("rozneEx[]: nieznany rodzaj exchangera")
 	}
 	przygotuj := func(chann *amqp.Channel, log *log.Logger) error {
-		log.Printf("Przygotowuję [%s->%s]", rodzaj, kind)
+		log.Printf("Przygotowuję [%s %s]", rodzaj, kind)
 		return przygotujEx(ex, chann)
 	}
 
-	nazwaSesji := fmt.Sprintf("EX(%s)", nazwa)
+	nazwaSesji := fmt.Sprintf("EX %s", nazwa)
 
 	sesja := otworz(url, przygotuj, nazwaSesji)
 	ex.sesja = sesja
@@ -50,16 +61,9 @@ func (ex *Ex) WyslijJSON(v interface{}) error {
 	if ex.publikuj == nil {
 		return fmt.Errorf("ex.publikuj == nil")
 	}
-	if !ex.sesja.czyOK {
+	if !ex.sesja.czyGotowa {
 		return fmt.Errorf("brak połączenia")
 	}
-	if ex.sesja.czyBlock {
-		return fmt.Errorf("połączenie blokowane przez serwer")
-	}
-	if !ex.sesja.czyFlow {
-		return fmt.Errorf("serwer prosi o łaskę (Flow)")
-	}
-
 	bajty, err := json.Marshal(v)
 	if err != nil {
 		return fmt.Errorf("json.Marshal(): %v", err)

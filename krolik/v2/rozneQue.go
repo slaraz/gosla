@@ -12,29 +12,30 @@ type queParam struct {
 }
 
 type rodzajQue struct {
-	przygotuj func(queParam, *amqp.Channel) error
+	przygotuj func(queParam, *amqp.Channel) (amqp.Queue, error)
 	konsumuj  func(queParam, *amqp.Channel) (<-chan amqp.Delivery, error)
 	odbierz   func(amqp.Delivery, QueHandler) error
 }
 
 var rozneQue = map[string]rodzajQue{
-	"stdque": {stdQue, stdKonsumuj, stdOdbierz},
-	"szybka": {szybkaQue, szybkaKonsumuj, szybkaOdbierz},
+	"stdque": {stdPrzygotuj, stdKonsumuj, stdOdbierz},
+	"szybka": {szybkaPrzygotuj, szybkaKonsumuj, szybkaOdbierz},
 	//"pewny": przygotujPewny,
 }
 
 // --- stdque ---
 
-func stdQue(que queParam, chann *amqp.Channel) error {
-	if _, err := chann.QueueDeclare(
+func stdPrzygotuj(que queParam, chann *amqp.Channel) (amqp.Queue, error) {
+	q, err := chann.QueueDeclare(
 		que.nazwa,
 		true,  // Durable
 		false, // Delete when unused
 		false, // Exclusive
 		false, // No-wait
 		nil,   // Arguments
-	); err != nil {
-		return fmt.Errorf("chann.QueueDeclare(): %v", err)
+	)
+	if err != nil {
+		return amqp.Queue{}, fmt.Errorf("chann.QueueDeclare(): %v", err)
 	}
 	if err := chann.QueueBind(
 		que.nazwa,  // name of the queue
@@ -43,16 +44,16 @@ func stdQue(que queParam, chann *amqp.Channel) error {
 		false,      // noWait
 		nil,        // arguments
 	); err != nil {
-		return fmt.Errorf("chann.QueueBind(): %v", err)
+		return amqp.Queue{}, fmt.Errorf("chann.QueueBind(): %v", err)
 	}
-	return nil
+	return q, nil
 }
 
 func stdKonsumuj(que queParam, chann *amqp.Channel) (<-chan amqp.Delivery, error) {
 	return chann.Consume(
 		que.nazwa, // name
 		"",        // consumerTag, dostanę od serwera
-		false,     // noAck
+		false,     // autoAck
 		false,     // exclusive
 		false,     // noLocal - not suported by RabbitMQ
 		false,     // noWait
@@ -76,16 +77,17 @@ func stdOdbierz(wiad amqp.Delivery, handler QueHandler) error {
 
 // --- szybka ---
 
-func szybkaQue(que queParam, chann *amqp.Channel) error {
-	if _, err := chann.QueueDeclare(
+func szybkaPrzygotuj(que queParam, chann *amqp.Channel) (amqp.Queue, error) {
+	q, err := chann.QueueDeclare(
 		que.nazwa,
 		true,  // Durable
 		false, // Delete when unused
 		false, // Exclusive
 		false, // No-wait
 		nil,   // Arguments
-	); err != nil {
-		return fmt.Errorf("chann.QueueDeclare(): %v", err)
+	)
+	if err != nil {
+		return amqp.Queue{}, fmt.Errorf("chann.QueueDeclare(): %v", err)
 	}
 	if err := chann.QueueBind(
 		que.nazwa,  // name of the queue
@@ -94,19 +96,19 @@ func szybkaQue(que queParam, chann *amqp.Channel) error {
 		false,      // noWait
 		nil,        // arguments
 	); err != nil {
-		return fmt.Errorf("chann.QueueBind(): %v", err)
+		return amqp.Queue{}, fmt.Errorf("chann.QueueBind(): %v", err)
 	}
-	return nil
+	return q, nil
 }
 
 func szybkaKonsumuj(que queParam, chann *amqp.Channel) (<-chan amqp.Delivery, error) {
 	return chann.Consume(
 		que.nazwa, // name
 		"",        // consumerTag, dostanę od serwera
-		true,      // noAck
+		true,      // autoAck
 		false,     // exclusive
 		false,     // noLocal - not suported by RabbitMQ
-		true,     // noWait
+		true,      // noWait
 		nil,       // arguments
 	)
 }

@@ -130,7 +130,8 @@ func Test_NAPIERAJ_szybkie(t *testing.T) {
 	db := nowaBaza(ile)
 	// Podłączamy się do Rabbita.
 	mojex := MusiExchanger(RABBIT, "testowy szybki", "stdex", "fanout")
-	mojqu := MusiQuełełe(RABBIT, "testowa szybka", "testowy szybki", "szybka", func(bajty []byte) error {
+	mojqu := MusiQuełełe(RABBIT, queParam{"testowa szybka", "testowy szybki"}, "szybka")
+	mojqu.Konsumuj(func(bajty []byte) error {
 		// Tylko potwierdzenie.
 		var id int
 		json.Unmarshal(bajty, &id)
@@ -164,7 +165,7 @@ func Test_NAPIERAJ_szybkie(t *testing.T) {
 
 func printSzybkosc(start time.Time, ile int64) {
 	czas := time.Since(start)
-	ileK := ile/1000
+	ileK := ile / 1000
 	log.Printf("czas wysyłania: %dk-> %v, jeden-> %v, %.1fk/s", ileK, czas, time.Duration(int64(czas)/ile), float64(ileK)/czas.Seconds())
 }
 
@@ -173,7 +174,8 @@ func Test_NAPIERAJ_std(t *testing.T) {
 	db := nowaBaza(ile)
 	// Podłączamy się do Rabbita.
 	mojex := MusiExchanger(RABBIT, "testowy std", "stdex", "fanout")
-	mojqu := MusiQuełełe(RABBIT, "testowa std", "testowy std", "stdque", func(bajty []byte) error {
+	mojqu := MusiQuełełe(RABBIT, queParam{"testowa std", "testowy std"}, "stdque")
+	mojqu.Konsumuj(func(bajty []byte) error {
 		// Tylko potwierdzenie.
 		var id int
 		json.Unmarshal(bajty, &id)
