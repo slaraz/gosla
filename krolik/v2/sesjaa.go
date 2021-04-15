@@ -18,6 +18,7 @@ type sesjaa struct {
 	nazwa     string
 	czyGotowa bool
 	chann     *amqp.Channel
+	Chann     chan *amqp.Channel
 	doneRQ    chan struct{}
 	doneACK   chan bool
 }
@@ -27,6 +28,7 @@ func otworz(url string, przygotuj funcPrzygotuj, nazwaSesji string) *sesjaa {
 		nazwa:   nazwaSesji,
 		doneRQ:  make(chan struct{}),
 		doneACK: make(chan bool),
+		Chann:   make(chan *amqp.Channel),
 	}
 	started := make(chan bool)
 	go sesja.pilnujSesji(url, started, przygotuj)
@@ -112,9 +114,11 @@ REINIT:
 	raz.Do(func() { started <- true })
 
 	// Sesja pracuje.
-
+pracuje:
 	// Czekamy na jakiś koniec.
 	select {
+	case sesja.Chann <- sesja.chann:
+		goto pracuje
 	case err := <-notifyConnClose:
 		<-notifyChannClose // HACK: tej linijki szukałem 1/2 dnia, zamyka (chan *amqp.Delivery)
 		log.Printf("Połączenie zamknięte: %v", err)

@@ -126,11 +126,13 @@ func Test_GOŁA_db(t *testing.T) {
 }
 
 func Test_NAPIERAJ_szybkie(t *testing.T) {
-	const ile = 200 * 1000
+	const ile = 1000 * 1000
 	db := nowaBaza(ile)
 	// Podłączamy się do Rabbita.
-	mojex := MusiExchanger(RABBIT, "testowy szybki", "stdex", "fanout")
-	mojqu := MusiQuełełe(RABBIT, queParam{"testowa szybka", "testowy szybki"}, "szybka")
+
+	mojex := MusiExchanger(RABBIT, EX, "szybki", "fanout")
+	mojqu := MusiQuełełe(RABBIT, queParam{QUE, EX}, "szybka")
+	mojqu.UsunWiadomosci()
 	mojqu.Konsumuj(func(bajty []byte) error {
 		// Tylko potwierdzenie.
 		var id int
@@ -141,6 +143,45 @@ func Test_NAPIERAJ_szybkie(t *testing.T) {
 
 	// Wysyłamy do Rabbita.
 	start := time.Now()
+	wyslij(db, mojex)
+
+	mojex.Close()
+	printSzybkosc(start, ile)
+	// Czekamy na odebranie wszystkiego z kolejki.
+	<-mojqu.Pusta
+	mojqu.Close()
+	db.DrukujStats()
+}
+
+func Test_NAPIERAJ_std(t *testing.T) {
+	const ile = 500 * 1000
+	db := nowaBaza(ile)
+	// Podłączamy się do Rabbita.
+	mojex := MusiExchanger(RABBIT, EX, "stdex", "fanout")
+	mojqu := MusiQuełełe(RABBIT, queParam{QUE, EX}, "stdque")
+	mojqu.UsunWiadomosci()
+	mojqu.Konsumuj(func(bajty []byte) error {
+		var id int
+		json.Unmarshal(bajty, &id)
+		db.Odebrany(id)
+		return nil
+	})
+
+	// Wysyłamy do Rabbita.
+	start := time.Now()
+	wyslij(db, mojex)
+
+	mojex.Close()
+	printSzybkosc(start, ile)
+	// Czekamy na odebranie wszystkiego z kolejki.
+	<-mojqu.Pusta
+	mojqu.Close()
+	db.DrukujStats()
+}
+
+// ---
+
+func wyslij(db baza, mojex *Ex) {
 	x := 0
 	for id := range db.ids() {
 		if err := mojex.WyslijJSON(id); err != nil {
@@ -155,54 +196,10 @@ func Test_NAPIERAJ_szybkie(t *testing.T) {
 			log.Printf("wysłałem %dk", x/1e3)
 		}
 	}
-	mojex.Close()
-	printSzybkosc(start, ile)
-	time.Sleep(5 * time.Second)
-	mojqu.Close()
-	time.Sleep(time.Second)
-	db.DrukujStats()
 }
 
 func printSzybkosc(start time.Time, ile int64) {
 	czas := time.Since(start)
 	ileK := ile / 1000
-	log.Printf("czas wysyłania: %dk-> %v, jeden-> %v, %.1fk/s", ileK, czas, time.Duration(int64(czas)/ile), float64(ileK)/czas.Seconds())
-}
-
-func Test_NAPIERAJ_std(t *testing.T) {
-	const ile = 2000 * 1000
-	db := nowaBaza(ile)
-	// Podłączamy się do Rabbita.
-	mojex := MusiExchanger(RABBIT, "testowy std", "stdex", "fanout")
-	mojqu := MusiQuełełe(RABBIT, queParam{"testowa std", "testowy std"}, "stdque")
-	mojqu.Konsumuj(func(bajty []byte) error {
-		// Tylko potwierdzenie.
-		var id int
-		json.Unmarshal(bajty, &id)
-		db.Odebrany(id)
-		return nil
-	})
-
-	// Wysyłamy do Rabbita.
-	start := time.Now()
-	x := 0
-	for id := range db.ids() {
-		if err := mojex.WyslijJSON(id); err != nil {
-			db.WyslanyNOK(id)
-			log.Printf("błąd WyslijJSON: %v", err)
-			time.Sleep(time.Second)
-		} else {
-			db.WyslanyOK(id)
-		}
-		x++
-		if x%1e5 == 0 {
-			log.Printf("wysłałem %dk", x/1e3)
-		}
-	}
-	mojex.Close()
-	printSzybkosc(start, ile)
-	time.Sleep(30 * time.Second)
-	mojqu.Close()
-	time.Sleep(time.Second)
-	db.DrukujStats()
+	log.Printf("Szybkość: czas wysyłania: %dk-> %v, jeden-> %v, %.1fk/s", ileK, czas, time.Duration(int64(czas)/ile), float64(ileK)/czas.Seconds())
 }

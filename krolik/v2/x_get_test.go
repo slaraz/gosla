@@ -8,9 +8,9 @@ import (
 
 func Test_WYSLJI_GET_JEDEN(t *testing.T) {
 	// Podłączamy się do Rabbita.
-	mojex := MusiExchanger(RABBIT, "moj testowy", "stdex", "fanout")
+	mojex := MusiExchanger(RABBIT, EX, "stdex", "fanout")
 	defer mojex.Close()
-	mojqu := MusiQuełełe(RABBIT, queParam{"moja testowa", "moj testowy"}, "stdque")
+	mojqu := MusiQuełełe(RABBIT, queParam{QUE, EX}, "stdque")
 	defer mojqu.Close()
 
 	wyslana := wiadomoscTestowa()
@@ -33,7 +33,7 @@ func Test_WYSLJI_GET_JEDEN(t *testing.T) {
 }
 
 func Test_GET_100(t *testing.T) {
-	mojqu := MusiQuełełe(RABBIT, queParam{"moja testowa", "moj testowy"}, "stdque")
+	mojqu := MusiQuełełe(RABBIT, queParam{QUE, EX}, "stdque")
 	defer mojqu.Close()
 
 	ile := 100

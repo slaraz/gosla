@@ -16,11 +16,11 @@ type QueHandler func([]byte) error
 type Que struct {
 	qp            queParam
 	rodzaj        string
-	handler       QueHandler
-	koniecKonsum  chan bool
+	konsumKoniec  chan struct{}
 	wrkWG         *sync.WaitGroup
 	wybranyRodzaj rodzajQue
 	sesja         *sesjaa
+	Pusta         chan struct{}
 }
 
 func MusiQuełełe(url string, qp queParam, rodzaj string) *Que {
@@ -31,23 +31,12 @@ func MusiQuełełe(url string, qp queParam, rodzaj string) *Que {
 	que := &Que{
 		qp:            qp,
 		rodzaj:        rodzaj,
-		koniecKonsum:  make(chan bool),
 		wrkWG:         &sync.WaitGroup{},
 		wybranyRodzaj: wybranyRodzajQue,
+		Pusta:         make(chan struct{}),
 	}
 	que.sesja = otworz(url, que.przygotuj, fmt.Sprintf("QUE %s", qp.nazwa))
 	return que
-}
-
-func (que *Que) Close() {
-	// Zamykamy wątki odbierające.
-	close(que.koniecKonsum)
-	// Czekamy aż się zakończą.
-	que.wrkWG.Wait()
-	// Zamykamy połączenie z Rabbitem.
-	if que.sesja != nil {
-		que.sesja.close()
-	}
 }
 
 func (que *Que) przygotuj(chann *amqp.Channel, log *log.Logger) error {
@@ -57,59 +46,75 @@ func (que *Que) przygotuj(chann *amqp.Channel, log *log.Logger) error {
 		return err
 	}
 	log.Printf("konsumentów: %d, wiadomości: %d", q.Consumers, q.Messages)
-
-	//
-	// TODO: kiedy ponawiamy połączenie odtworzyć Workery Kosumujące.
-
-	// if que.handler != nil {
-	// 	if err := que.konsumuj(chann); err != nil {
-	// 		return err
-	// 	}
-	// }
-
 	return nil
 }
 
-func (que *Que) Konsumuj(handler QueHandler) error {
-	que.handler = handler
-	chann := que.sesja.chann
-	wiadChann, err := que.wybranyRodzaj.konsumuj(que.qp, chann)
-	if err != nil {
-		return err
+func (que *Que) Close() {
+	// Zamykamy wątki odbierające.
+	if que.konsumKoniec != nil {
+		close(que.konsumKoniec)
 	}
-	//que.podepnijHandler(wiadChann, wybranyRodzajQue.odbierz)
-	// }
-	// func (que *Que) podepnijHandler(wiadChann <-chan amqp.Delivery, odbierzDelivery func(amqp.Delivery, QueHandler) error) {
-	que.koniecKonsum = make(chan bool)
+	// Czekamy aż się zakończą.
+	que.wrkWG.Wait()
+	// Zamykamy połączenie z Rabbitem.
+	if que.sesja != nil {
+		que.sesja.close()
+	}
+}
+
+func (que *Que) Konsumuj(handler QueHandler) {
+	que.konsumKoniec = make(chan struct{})
 	que.wrkWG.Add(1)
 	go func() {
+		defer que.wrkWG.Done()
 		log := log.New(os.Stdout, "[Que.Wrk] ", 0)
-	petla:
+		var chann *amqp.Channel
+	INIT:
+		log.Print("Czekam na połączenie...")
+		select {
+		case chann = <-que.sesja.Chann:
+			break
+		case <-que.konsumKoniec:
+			log.Printf("KONIEC.")
+			return
+		}
+		wiadChann, err := que.wybranyRodzaj.konsumuj(que.qp, chann)
+		if err != nil {
+			log.Printf("błąd konsumuj(): %v", err)
+			goto INIT
+		}
+		log.Print("KONSUMUJĘ")
 		for {
 			select {
 			case wiad, ok := <-wiadChann:
 				if !ok {
 					log.Print("kanał wiadomosci zamknięty")
-					break petla
+					goto INIT
 				}
 				// Obsługa wiadomości przez klienta.
-				err := que.wybranyRodzaj.odbierz(wiad, que.handler)
+				err := que.wybranyRodzaj.odbierz(wiad, handler)
 				if err != nil {
 					log.Printf("błąd odbierzDelivery(): %v", err)
 				}
 
-			case <-time.After(3 * time.Second):
-				log.Printf("brak wiadomości...")
+			//case <-time.After(3 * time.Second):
 
-			case <-que.koniecKonsum:
-				log.Print("zatrzymuję")
-				break petla
+			case <-time.After(time.Second):
+				// Jeśli przez sekundę nic nie przyszło to kolejka jest pusta.
+				select {
+				case que.Pusta <- struct{}{}:
+					break
+				default:
+					break
+				}
+
+			case <-que.konsumKoniec:
+				log.Printf("KONIEC.")
+				return
+
 			}
 		}
-		que.wrkWG.Done()
-		log.Printf("KONIEC.")
 	}()
-	return nil
 }
 
 func (que *Que) GetJSON(v interface{}) error {
@@ -128,6 +133,21 @@ func (que *Que) GetJSON(v interface{}) error {
 	err = json.Unmarshal(msg.Body, v)
 	if err != nil {
 		return fmt.Errorf("json.Unmarshal(): %v", err)
+	}
+	return nil
+}
+
+func (que *Que) UsunWiadomosci() error {
+	if !que.sesja.czyGotowa {
+		return fmt.Errorf("brak połączenia")
+	}
+	ile, err := que.sesja.chann.QueuePurge(que.qp.nazwa, true)
+	if err != nil {
+		return fmt.Errorf("chann.QueuePurge(): %v", err)
+	}
+	if ile > 0 {
+		log.Printf("usunąłem %d wiad", ile)
+		return nil
 	}
 	return nil
 }
